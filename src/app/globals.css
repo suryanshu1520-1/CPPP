@@ -1,32 +1,160 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
 
+/* ============================================================
+   DESIGN TOKEN SYSTEM — PRISTINE LIGHT (default)
+   ============================================================ */
 :root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: #121a2f;
-  --bg-card: rgba(18, 26, 47, 0.65);
-  
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
-  
-  --accent-blue: #3b82f6;
-  --accent-blue-glow: rgba(59, 130, 246, 0.5);
-  --accent-green: #10b981;
-  --accent-red: #ef4444;
-  --accent-amber: #f59e0b;
-  
-  --font-header: 'Outfit', sans-serif;
+  --bg-primary: #FAFAFA;
+  --bg-secondary: #F3F4F6;
+  --bg-card: #FFFFFF;
+
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+
+  --border-subtle: #E5E7EB;
+  --border-hover: #D1D5DB;
+
+  --accent-blue: #2563EB;
+  --accent-blue-glow: rgba(37, 99, 235, 0.1);
+  --accent-green: #0D9488;
+  --accent-red: #DC2626;
+  --accent-amber: #D97706;
+  --accent-purple: #7C3AED;
+  --accent-yellow: #D97706;
+
+  --color-risk-baseline: #2563EB;
+  --color-risk-medium: #D97706;
+  --color-risk-high: #F59E0B;
+  --color-risk-catastrophic: #DC2626;
+
+  --font-header: 'Outfit', 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-hindi: 'Noto Sans Devanagari', sans-serif;
+
+  --theme-transition: background-color 0.25s ease, color 0.25s ease,
+                      border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-* {
+/* ============================================================
+   MONOKAI DARK THEME
+   Toggle: document.documentElement.setAttribute('data-theme','monokai')
+   Palette: Monokai Pro by Wimer Hazenberg — authentic colour values
+   ============================================================ */
+[data-theme="monokai"] {
+  /* Backgrounds */
+  --bg-primary:    #272822;   /* Classic Monokai base */
+  --bg-secondary:  #1e1f1b;   /* Deeper trough */
+  --bg-card:       #2d2e27;   /* Lifted card surface */
+  --bg-elevated:   #3e3d32;   /* Dropdown / tooltip / modal */
+
+  /* Typography */
+  --text-primary:   #f8f8f2;  /* Monokai foreground warm white */
+  --text-secondary: #cfcfc2;  /* Muted label */
+  --text-muted:     #75715e;  /* Comment tone */
+
+  /* Borders */
+  --border-subtle: #3e3d32;
+  --border-hover:  #75715e;
+
+  /* Monokai accent palette */
+  --accent-blue:      #66d9e8;              /* Cyan */
+  --accent-blue-glow: rgba(102,217,232,.13);
+  --accent-green:     #a6e22e;              /* Lime */
+  --accent-red:       #f92672;              /* Hot pink */
+  --accent-amber:     #fd971f;              /* Orange */
+  --accent-purple:    #ae81ff;              /* Violet */
+  --accent-yellow:    #e6db74;              /* Yellow */
+
+  /* Risk spectrum — Monokai-mapped */
+  --color-risk-baseline:    #a6e22e;
+  --color-risk-medium:      #e6db74;
+  --color-risk-high:        #fd971f;
+  --color-risk-catastrophic:#f92672;
+}
+
+/* Monokai — body */
+[data-theme="monokai"] body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Monokai — glass panels */
+[data-theme="monokai"] .glassPanel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 24px rgba(0,0,0,.45), 0 1px 0 rgba(102,217,232,.04);
+}
+[data-theme="monokai"] .glassPanel:hover {
+  border-color: #75715e;
+  box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(102,217,232,.10);
+}
+
+/* Monokai — scrollbars */
+[data-theme="monokai"] ::-webkit-scrollbar-track { background: #1e1f1b; }
+[data-theme="monokai"] ::-webkit-scrollbar-thumb { background: #3e3d32; border-radius: 4px; }
+[data-theme="monokai"] ::-webkit-scrollbar-thumb:hover { background: #75715e; }
+
+/* Monokai — text selection */
+[data-theme="monokai"] ::selection {
+  background: rgba(102,217,232,.25);
+  color: #f8f8f2;
+}
+
+/* Monokai — table row hover */
+[data-theme="monokai"] tr:hover {
+  background: rgba(62,61,50,.65) !important;
+}
+
+/* Monokai — form inputs */
+[data-theme="monokai"] input,
+[data-theme="monokai"] select,
+[data-theme="monokai"] textarea {
+  background: #3e3d32 !important;
+  color: #f8f8f2 !important;
+  border-color: #3e3d32 !important;
+}
+[data-theme="monokai"] input::placeholder,
+[data-theme="monokai"] textarea::placeholder { color: #75715e !important; }
+[data-theme="monokai"] input:focus,
+[data-theme="monokai"] select:focus,
+[data-theme="monokai"] textarea:focus {
+  border-color: #66d9e8 !important;
+  box-shadow: 0 0 0 3px rgba(102,217,232,.18) !important;
+  outline: none;
+}
+
+/* Monokai — code / mono */
+[data-theme="monokai"] code,
+[data-theme="monokai"] pre { color: #e6db74; }
+
+/* Monokai — theme toggle glow animation */
+@keyframes monokaiPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(102,217,232,.45); }
+  70%  { box-shadow: 0 0 0 10px rgba(102,217,232,0); }
+  100% { box-shadow: 0 0 0 0 rgba(102,217,232,0); }
+}
+[data-theme="monokai"] .themeToggle {
+  background: #3e3d32;
+  border-color: #66d9e8;
+  color: #66d9e8;
+  animation: monokaiPulse 2.5s ease-out 1;
+}
+
+/* ============================================================
+   GLOBAL BASE STYLES
+   ============================================================ */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: var(--theme-transition);
+}
+
+/* Exclude performance-sensitive elements from theme transitions */
+svg, canvas, img, video, * > svg {
+  transition: none !important;
 }
 
 body {
@@ -38,20 +166,19 @@ body {
   overflow-x: hidden;
 }
 
-/* Glassmorphism Utilities */
+/* Glassmorphism — Pristine Light default */
 .glassPanel {
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03);
   transition: all 0.3s ease;
 }
-
 .glassPanel:hover {
   border-color: var(--border-hover);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.04);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -60,37 +187,49 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
 }
 
-/* Bi-lingual support */
-.lang-hi {
-  font-family: var(--font-hindi);
-}
+.lang-hi { font-family: var(--font-hindi); }
 
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
+.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
 .animate-delay-1 { animation-delay: 0.1s; }
 .animate-delay-2 { animation-delay: 0.2s; }
 .animate-delay-3 { animation-delay: 0.3s; }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Theme toggle button */
+.themeToggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 7px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+.themeToggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
-::-webkit-scrollbar-thumb {
-  background: var(--bg-secondary);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+
+/* Scrollbar — light mode */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track  { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb  { background: var(--border-subtle); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Tabular numerals */
+.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.02em;
 }

@@ -9,19 +9,20 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const type = searchParams.get('type') || 'all'; // 'single_bid', 'rush', 'delayed', 'all'
+    const org = searchParams.get('org') || '';
+    const vendor = searchParams.get('vendor') || '';
+    const minVal = searchParams.get('minVal') ? parseFloat(searchParams.get('minVal')) : null;
     
-    let whereClause = "bids_received = 1 OR bid_window_days < 7 OR award_delay_days > 180";
+    let whereClause = "(bids_received = 1 OR (bid_window_days >= 0 AND bid_window_days < 7) OR award_delay_days > 180)";
     if (type === 'single_bid') {
       whereClause = "bids_received = 1";
     } else if (type === 'rush') {
-      whereClause = "bid_window_days >= 0 AND bid_window_days < 7";
+      whereClause = "(bid_window_days >= 0 AND bid_window_days < 7)";
     } else if (type === 'delayed') {
       whereClause = "award_delay_days > 180";
     }
 
-    // Since aoc_clean is huge, we filter and order by contract_date DESC (which is indexed!)
-    // Querying with an index on contract_date will be extremely fast!
-    const query = `
+    let sql = `
       SELECT 
         internal_id as internalId,
         tender_id as tenderId,
@@ -36,13 +37,28 @@ export async function GET(request) {
         award_delay_days as awardDelay,
         bid_window_days as bidWindow
       FROM aoc_clean
-      WHERE (${whereClause}) AND contract_date IS NOT NULL
-      ORDER BY contract_date DESC
-      LIMIT ${limit}
+      WHERE ${whereClause} AND contract_date IS NOT NULL AND contract_date != '9999-01-01 00:00:00' AND org_name != 'Unknown'
     `;
+    const params = [];
+
+    if (org) {
+      sql += ` AND org_name = ?`;
+      params.push(org);
+    }
+    if (vendor) {
+      sql += ` AND vendor_name = ?`;
+      params.push(vendor);
+    }
+    if (minVal !== null) {
+      sql += ` AND contract_value >= ?`;
+      params.push(minVal * 10000000); // Convert Crores to absolute Rupees
+    }
+
+    sql += ` ORDER BY contract_date DESC LIMIT ?`;
+    params.push(limit);
     
     const startTime = Date.now();
-    const tenders = db.prepare(query).all();
+    const tenders = db.prepare(sql).all(...params);
     const queryTime = Date.now() - startTime;
     console.log(`Red flag query executed in ${queryTime}ms`);
     

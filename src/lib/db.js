@@ -18,3 +18,10 @@ export function getDb() {
   }
   return db;
 }
+
+export function getWritableDb() {
+  const writeDb = new Database(dbPath, { readonly: false });
+  writeDb.pragma('journal_mode = WAL');
+  writeDb.pragma('synchronous = NORMAL');
+  return writeDb;
+}
