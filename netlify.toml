@@ -1,10 +1,6 @@
 [build]
-  command = "npm run build"
-  publish = ".next"
-  base = "dashboard-ui"
-
-[build.environment]
-  NEXT_DISABLE_SOURCEMAPS = "1"
+  command = "cd dashboard-ui && npm run build"
+  publish = "dashboard-ui/.next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
