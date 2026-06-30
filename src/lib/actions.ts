@@ -6,7 +6,7 @@
 'use server';
 
 import { unstable_cache } from 'next/cache';
-import { query, queryOne, queryValue } from './db';
+import { query, queryOne, queryValue } from './postgres';
 import { CACHE_TAGS, CACHE_CONFIG } from './cache-tags';
 import type {
     DepartmentScorecardData,
