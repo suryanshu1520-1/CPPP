@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
 export async function GET() {
   try {
     const db = getDb();
-    
+
     // 1. Get totals from org_summary
     const statsQuery = `
       SELECT 
@@ -14,16 +14,16 @@ export async function GET() {
         SUM(total_contracts * avg_bids) / SUM(total_contracts) as avgBids
       FROM org_summary
     `;
-    
+
     const stats = db.prepare(statsQuery).get();
-    
+
     // 2. Count critical flags (e.g. single bid, short bid window < 7 days, or high award delay)
     // We can query this from aoc_clean using an optimized index or precomputed count.
     // Since aoc_clean is large, we can pre-calculate or run a quick count of anomalies.
     // For now, let's count from aoc_clean with a limit or use a pre-computed constant if the DB doesn't have a red_flags table yet.
     // Let's check how many single-bid contracts there are.
     const totalSingleBid = stats.totalSingleBid || 0;
-    
+
     // Let's query a sample or quick count for other red flags (rush jobs)
     // To keep it fast, we can run a count on a subquery or a pre-computed estimate.
     const rushJobsQuery = `
@@ -51,22 +51,22 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Database query error in macro-stats:', error);
-    
+
     // Handle database locked or tables not initialized yet
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Please reload in a few minutes.",
         isLocked: true,
         // Mock data to prevent total UI collapse during initial setup
-        totalValue: 74200000000, 
+        totalValue: 74200000000,
         totalContracts: 8874151,
         avgBids: 3.69,
         singleBidRate: 7.8,
         criticalFlags: 654210
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

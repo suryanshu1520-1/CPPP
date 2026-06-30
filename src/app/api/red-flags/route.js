@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
 export async function GET(request) {
   try {
     const db = getDb();
-    
+
     // Parse query params
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -12,7 +12,7 @@ export async function GET(request) {
     const org = searchParams.get('org') || '';
     const vendor = searchParams.get('vendor') || '';
     const minVal = searchParams.get('minVal') ? parseFloat(searchParams.get('minVal')) : null;
-    
+
     let whereClause = "(bids_received = 1 OR (bid_window_days >= 0 AND bid_window_days < 7) OR award_delay_days > 180)";
     if (type === 'single_bid') {
       whereClause = "bids_received = 1";
@@ -56,21 +56,21 @@ export async function GET(request) {
 
     sql += ` ORDER BY contract_date DESC LIMIT ?`;
     params.push(limit);
-    
+
     const startTime = Date.now();
     const tenders = db.prepare(sql).all(...params);
     const queryTime = Date.now() - startTime;
     console.log(`Red flag query executed in ${queryTime}ms`);
-    
+
     return NextResponse.json({
       success: true,
       data: tenders
     });
   } catch (error) {
     console.error('Database query error in red-flags:', error);
-    
+
     // Fallback Mock alerts
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       const mockAlerts = [
         {
           internalId: "AOC_1029410",
@@ -143,7 +143,7 @@ export async function GET(request) {
           bidWindow: 5
         }
       ];
-      
+
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Showing fallback red flags.",
@@ -151,7 +151,7 @@ export async function GET(request) {
         data: mockAlerts
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

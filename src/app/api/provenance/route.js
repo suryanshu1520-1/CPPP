@@ -7,18 +7,18 @@ import crypto from 'crypto';
 export async function GET() {
   try {
     const db = getDb();
-    
+
     // 1. Get database path and stats
     const dbPath = path.resolve(process.cwd(), '../dashboard.db');
     let dbSize = 0;
     let dbMtime = 0;
-    
+
     if (fs.existsSync(dbPath)) {
       const stats = fs.statSync(dbPath);
       dbSize = stats.size;
       dbMtime = stats.mtimeMs;
     }
-    
+
     // 2. Fetch the current row count of the core awards table
     let rowCount = 0;
     try {
@@ -27,7 +27,7 @@ export async function GET() {
     } catch (e) {
       console.error("Error reading row count for provenance:", e);
     }
-    
+
     // 3. Generate a deterministic SHA-256 hash representing the database state
     // We combine the file size, last modified time, and table row count.
     // This is instant (< 0.1ms) and changes if the database is modified or updated.
@@ -36,7 +36,7 @@ export async function GET() {
       .createHash('sha256')
       .update(stateString)
       .digest('hex');
-      
+
     // 4. Expose the schema signature hash for legal verification
     const schemaSql = "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;";
     let schemaConcat = "";
@@ -73,6 +73,22 @@ export async function GET() {
 
   } catch (error) {
     console.error("Error in provenance API:", error);
+    if (error.message === 'DATABASE_UNAVAILABLE') {
+      return NextResponse.json({
+        success: false,
+        message: "Database is currently being built or optimized. Showing fallback provenance.",
+        isLocked: true,
+        provenance: {
+          hash: "fallback_state_hash",
+          lastModified: new Date().toISOString(),
+          datasetMetadata: {
+            totalAwardsProcessed: 0,
+            databaseSizeBytes: 0,
+            systemTimestamp: new Date().toISOString()
+          }
+        }
+      });
+    }
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

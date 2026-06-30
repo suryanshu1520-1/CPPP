@@ -12,7 +12,7 @@ function cleanFtsQuery(q) {
 export async function GET(request) {
   try {
     const db = getDb();
-    
+
     // Parse query params
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
@@ -148,9 +148,9 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('Database query error in search:', error);
-    
+
     // Fallback Mock results
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       const mockSearch = [
         {
           internalId: "AOC_1",
@@ -195,7 +195,7 @@ export async function GET(request) {
           bidWindow: 19
         }
       ];
-      
+
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Showing fallback search results.",
@@ -206,7 +206,7 @@ export async function GET(request) {
         limit: 20
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
 export async function GET() {
   try {
     const db = getDb();
-    
+
     const query = `
       SELECT 
         org_name as department,
@@ -19,9 +19,9 @@ export async function GET() {
       ORDER BY total_value DESC
       LIMIT 15
     `;
-    
+
     const departments = db.prepare(query).all();
-    
+
     // Format values nicely
     const data = departments.map(d => ({
       ...d,
@@ -30,16 +30,16 @@ export async function GET() {
       avgDelay: d.avgDelay ? parseFloat(d.avgDelay.toFixed(1)) : 0,
       singleBidRate: d.singleBidRate ? parseFloat(d.singleBidRate.toFixed(1)) : 0
     }));
-    
+
     return NextResponse.json({
       success: true,
       data
     });
   } catch (error) {
     console.error('Database query error in top-departments:', error);
-    
+
     // Fallback Mock data
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       const mockDeps = [
         { department: "National Highways Authority of India (NHAI)", contracts: 12450, value: 184500000000, avgBids: 4.2, avgDelay: 45.2, singleBidContracts: 950, singleBidRate: 7.6 },
         { department: "Military Engineer Services (MES)", contracts: 45120, value: 92400000000, avgBids: 3.1, avgDelay: 32.8, singleBidContracts: 4820, singleBidRate: 10.7 },
@@ -51,8 +51,8 @@ export async function GET() {
         { department: "State Public Works Department - Kerala", contracts: 35879, value: 34500000000, avgBids: 2.5, avgDelay: 50.2, singleBidContracts: 5310, singleBidRate: 14.8 },
         { department: "Indian Oil Corporation Limited (IOCL)", contracts: 90796, value: 120400000000, avgBids: 4.5, avgDelay: 22.0, singleBidContracts: 3410, singleBidRate: 3.8 },
         { department: "Bharat Petroleum Corporation Limited (BPCL)", contracts: 11933, value: 89100000000, avgBids: 4.8, avgDelay: 20.4, singleBidContracts: 290, singleBidRate: 2.4 }
-      ].sort((a,b) => b.value - a.value);
-      
+      ].sort((a, b) => b.value - a.value);
+
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Showing fallback top departments.",
@@ -60,7 +60,7 @@ export async function GET() {
         data: mockDeps
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

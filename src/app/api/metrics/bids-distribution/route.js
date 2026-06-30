@@ -90,9 +90,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error("Error in bids-distribution API:", error);
-    
+
     // Fallback Mock results
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       const mockData = [
         { bids: "1 Bid", count: 582857 },
         { bids: "2 Bids", count: 839811 },
@@ -107,7 +107,7 @@ export async function GET(request) {
         data: mockData
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

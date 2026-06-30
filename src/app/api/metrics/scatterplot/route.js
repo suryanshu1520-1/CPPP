@@ -121,7 +121,7 @@ export async function GET(request) {
     const normals = org
       ? db.prepare(normalSql).all(params[1])
       : db.prepare(normalSql).all();
-    
+
     // Combine data points
     const data = [...anomalies, ...normals].map(d => ({
       ...d,
@@ -140,6 +140,17 @@ export async function GET(request) {
 
   } catch (error) {
     console.error("Error in scatterplot API:", error);
+    if (error.message === 'DATABASE_UNAVAILABLE') {
+      return NextResponse.json({
+        success: false,
+        message: "Database is currently being built or optimized. Showing fallback scatterplot data.",
+        isLocked: true,
+        org: org || 'All Departments',
+        anomaliesCount: 0,
+        normalCount: 0,
+        data: []
+      });
+    }
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

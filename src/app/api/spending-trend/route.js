@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db';
 export async function GET() {
   try {
     const db = getDb();
-    
+
     const trendQuery = `
       SELECT 
         year_month as date,
@@ -15,24 +15,24 @@ export async function GET() {
       WHERE year_month IS NOT NULL AND year_month != '' AND year_month >= '2011-01'
       ORDER BY year_month ASC
     `;
-    
+
     const trend = db.prepare(trendQuery).all();
-    
+
     return NextResponse.json({
       success: true,
       data: trend
     });
   } catch (error) {
     console.error('Database query error in spending-trend:', error);
-    
+
     // Handle database locked or tables not initialized yet
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       // Return high-quality mock trend data for styling/fallback
       const mockData = [];
       const startYear = 2018;
       const endYear = 2026;
       const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
-      
+
       let baseValue = 500000000; // 50 Cr
       for (let y = startYear; y <= endYear; y++) {
         for (const m of months) {
@@ -53,7 +53,7 @@ export async function GET() {
         data: mockData
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const org = searchParams.get('org') || '';
     const vendor = searchParams.get('vendor') || '';
-    
+
     // Custom weight overrides from query params (defaulting to 0.4, 0.4, 0.2)
     const w1 = parseFloat(searchParams.get('w1') || '0.4'); // Single Bid Weight
     const w2 = parseFloat(searchParams.get('w2') || '0.4'); // Rush Job Weight
@@ -22,7 +22,7 @@ export async function GET(request) {
     let targetType = '';
     let targetName = '';
     let sql = '';
-    
+
     if (org) {
       targetType = 'organization';
       targetName = org;
@@ -68,15 +68,15 @@ export async function GET(request) {
         LIMIT 20
       `;
       const highRiskOrgs = db.prepare(listSql).all();
-      
+
       const listData = highRiskOrgs.map(item => {
         const singleBidRate = item.totalContracts ? (item.singleBidCount / item.totalContracts) : 0;
         // Estimate delayed award rate (normalized average delay, capped at 1.0)
         const delayFactor = Math.min(1.0, (item.avgDelayDays || 0) / 180.0);
-        
+
         // Dynamic composite IRI score (using 0.6 Single Bid, 0.4 Delay for summary list fallback)
         const iri = (singleBidRate * 0.6 + delayFactor * 0.4) * 100.0;
-        
+
         return {
           name: item.name,
           totalContracts: item.totalContracts,
@@ -116,8 +116,8 @@ export async function GET(request) {
 
     // Composite IRI calculation (weighted rates, scaled 0 to 100)
     const iri = (
-      (singleBidRate * weightSingle) + 
-      (rushJobRate * weightRush) + 
+      (singleBidRate * weightSingle) +
+      (rushJobRate * weightRush) +
       (delayedAwardRate * weightDelay)
     ) * 100.0;
 
@@ -146,9 +146,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error("Error in IRI API:", error);
-    
+
     // Fallback Mock results if database locks
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       return NextResponse.json({
         success: false,
         message: "Database is locked or currently being rebuilt. Showing mock integrity risk metrics.",
@@ -170,7 +170,7 @@ export async function GET(request) {
         }
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

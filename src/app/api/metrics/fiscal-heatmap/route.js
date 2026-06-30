@@ -123,7 +123,7 @@ export async function GET(request) {
         console.error("Error in fiscal-heatmap API:", error);
 
         // Fallback Mock data
-        if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+        if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
             const mockData = generateMockHeatmapData();
             return NextResponse.json({
                 success: false,

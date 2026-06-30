@@ -88,9 +88,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error("Error in HHI API:", error);
-    
+
     // Fallback Mock results if DB locked or not updated yet
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table')) {
+    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
       return NextResponse.json({
         success: false,
         message: "Database is locked or currently being rebuilt. Showing mock concentration metrics.",
@@ -108,7 +108,7 @@ export async function GET(request) {
         ]
       });
     }
-    
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
