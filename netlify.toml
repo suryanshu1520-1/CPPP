@@ -1,6 +1,2 @@
-[build]
-  command = "npm run build"
-  base = "dashboard-ui"
-
 [[plugins]]
   package = "@netlify/plugin-nextjs"
