@@ -1,54 +1,44 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import fs from 'fs';
-import path from 'path';
+import { queryOne } from '@/lib/postgres';
 import crypto from 'crypto';
 
 export async function GET() {
   try {
-    const db = getDb();
+    // 1. Get row count from PostgreSQL
+    const countResult = await queryOne("SELECT COUNT(*)::bigint as count FROM aoc_clean");
+    const rowCount = countResult?.count ? Number(countResult.count) : 0;
 
-    // 1. Get database path and stats
-    const dbPath = path.resolve(process.cwd(), '../dashboard.db');
-    let dbSize = 0;
-    let dbMtime = 0;
+    // 2. Get database size from PostgreSQL
+    const sizeResult = await queryOne(`
+      SELECT pg_database_size(current_database())::bigint as db_size
+    `);
+    const dbSize = sizeResult?.db_size ? Number(sizeResult.db_size) : 0;
 
-    if (fs.existsSync(dbPath)) {
-      const stats = fs.statSync(dbPath);
-      dbSize = stats.size;
-      dbMtime = stats.mtimeMs;
-    }
+    // 3. Get last modification time
+    const timeResult = await queryOne(`
+      SELECT MAX(created_at) as last_modified FROM aoc_clean
+    `);
+    const lastModified = timeResult?.last_modified || new Date().toISOString();
 
-    // 2. Fetch the current row count of the core awards table
-    let rowCount = 0;
-    try {
-      const countRes = db.prepare("SELECT COUNT(*) as count FROM aoc_clean").get();
-      rowCount = countRes.count || 0;
-    } catch (e) {
-      console.error("Error reading row count for provenance:", e);
-    }
-
-    // 3. Generate a deterministic SHA-256 hash representing the database state
-    // We combine the file size, last modified time, and table row count.
-    // This is instant (< 0.1ms) and changes if the database is modified or updated.
-    const stateString = `CPPP_WATCHDOG_STATE_V1:${dbSize}:${dbMtime}:${rowCount}`;
+    // 4. Generate deterministic hash
+    const stateString = `CPPP_WATCHDOG_STATE_V1:${dbSize}:${lastModified}:${rowCount}`;
     const databaseHash = crypto
       .createHash('sha256')
       .update(stateString)
       .digest('hex');
 
-    // 4. Expose the schema signature hash for legal verification
-    const schemaSql = "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;";
-    let schemaConcat = "";
-    try {
-      const schemas = db.prepare(schemaSql).all();
-      schemaConcat = schemas.map(s => s.sql).join('|');
-    } catch (e) {
-      console.error("Error reading schemas for provenance:", e);
-    }
+    // 5. Schema hash from PostgreSQL information_schema
+    const schemaResult = await queryOne(`
+      SELECT string_agg(
+        table_name || ':' || column_name || ':' || data_type, '|'
+        ORDER BY table_name, ordinal_position
+      ) as schema_sig
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+    `);
     const schemaHash = crypto
       .createHash('sha256')
-      .update(schemaConcat || 'static_fallback')
+      .update(schemaResult?.schema_sig || 'static_fallback')
       .digest('hex');
 
     return NextResponse.json({
@@ -56,7 +46,7 @@ export async function GET() {
       provenance: {
         hash: databaseHash,
         schemaHash: schemaHash,
-        lastModified: new Date(dbMtime).toISOString(),
+        lastModified: typeof lastModified === 'string' ? lastModified : new Date(lastModified).toISOString(),
         datasetMetadata: {
           totalAwardsProcessed: rowCount,
           databaseSizeBytes: dbSize,
@@ -65,15 +55,15 @@ export async function GET() {
         dataManifesto: "All calculated concentration and integrity risk scores are mathematically derived from raw Central Public Procurement Portal (CPPP) source rows. The SHA-256 state hash guarantees that the underlying transaction ledger has not been tampered with since the last verified update.",
         sources: [
           { name: "aoc_clean", description: "Cleaned Award of Contract (AoC) transactional records", source: "CPPP India" },
-          { name: "org_summary", description: "Aggregated department-level purchasing statistics", source: "CPPP India" },
-          { name: "vendor_summary", description: "Aggregated contractor-level market share summaries", source: "CPPP India" }
+          { name: "org_summary", description: "Department dimension table", source: "CPPP India" },
+          { name: "vendor_summary", description: "Vendor dimension table with aggregated metrics", source: "CPPP India" }
         ]
       }
     });
 
   } catch (error) {
     console.error("Error in provenance API:", error);
-    if (error.message === 'DATABASE_UNAVAILABLE') {
+    if (error.message === 'DATABASE_UNAVAILABLE' || error.code === 'ECONNREFUSED') {
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Showing fallback provenance.",

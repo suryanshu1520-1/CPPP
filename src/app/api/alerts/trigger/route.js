@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/postgres';
 
 export async function POST(request) {
   return executeTrigger();
@@ -11,16 +11,15 @@ export async function GET(request) {
 
 async function executeTrigger() {
   try {
-    const db = getDb();
-
     // Fetch active subscriptions
-    const subs = db.prepare("SELECT * FROM subscriptions LIMIT 20").all();
+    const subs = await query("SELECT * FROM subscriptions LIMIT 20");
     const dispatches = [];
 
     for (const sub of subs) {
       // Build search query for new anomalies matching subscription parameters
-      let where = "contract_date != '9999-01-01 00:00:00' AND org_name != 'Unknown'";
+      let where = "org_name != 'Unknown'";
       const params = [];
+      let paramIndex = 1;
 
       if (sub.alert_type === 'single_bid') {
         where += " AND bids_received = 1";
@@ -33,24 +32,24 @@ async function executeTrigger() {
       }
 
       if (sub.org_name) {
-        where += " AND org_name = ?";
+        where += ` AND org_name = $${paramIndex++}`;
         params.push(sub.org_name);
       }
 
       if (sub.min_value) {
-        where += " AND contract_value >= ?";
-        params.push(sub.min_value * 10000000); // UI Crores to absolute Rupees
+        where += ` AND contract_value >= $${paramIndex++}`;
+        params.push(sub.min_value * 10000000);
       }
 
       const anomaliesQuery = `
-        SELECT tender_id, org_name, title, contract_value, bids_received, contract_date
+        SELECT tender_id, org_name, tender_title as title, contract_value, bids_received, contract_date
         FROM aoc_clean
         WHERE ${where}
         ORDER BY contract_date DESC
         LIMIT 3
       `;
 
-      const matches = db.prepare(anomaliesQuery).all(...params);
+      const matches = await query(anomaliesQuery, params);
 
       if (matches.length > 0) {
         dispatches.push({
@@ -60,8 +59,8 @@ async function executeTrigger() {
           matchedAnomalies: matches.map(m => ({
             tenderId: m.tender_id,
             org: m.org_name,
-            title: m.title.substring(0, 60) + '...',
-            value: m.contract_value,
+            title: m.title ? m.title.substring(0, 60) + '...' : '',
+            value: m.contract_value ? Number(m.contract_value) : 0,
             bids: m.bids_received,
             date: m.contract_date
           }))
@@ -78,7 +77,7 @@ async function executeTrigger() {
 
   } catch (error) {
     console.error('Trigger alerts error:', error);
-    if (error.message === 'DATABASE_UNAVAILABLE') {
+    if (error.message === 'DATABASE_UNAVAILABLE' || error.code === 'ECONNREFUSED') {
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Please try again later.",

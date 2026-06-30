@@ -1,34 +1,30 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/postgres';
 
 export async function GET() {
   try {
-    const db = getDb();
-
-    const query = `
+    const departments = await query(`
       SELECT 
-        org_name as department,
-        total_contracts as contracts,
-        total_value as value,
-        avg_bids as avgBids,
-        avg_delay_days as avgDelay,
-        single_bid_contracts as singleBidContracts,
-        (single_bid_contracts * 100.0 / total_contracts) as singleBidRate
-      FROM org_summary
-      WHERE org_name IS NOT NULL AND org_name != 'Unknown' AND org_name != ''
-      ORDER BY total_value DESC
+        a.org_name as department,
+        COUNT(*)::int as contracts,
+        SUM(a.contract_value)::bigint as value,
+        AVG(a.bids_received)::numeric(10,2) as "avgBids",
+        AVG(a.award_delay_days)::numeric(10,1) as "avgDelay",
+        SUM(CASE WHEN a.bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidContracts",
+        ROUND(SUM(CASE WHEN a.bids_received = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) as "singleBidRate"
+      FROM aoc_clean a
+      WHERE a.org_name IS NOT NULL AND a.org_name != 'Unknown' AND a.org_name != ''
+      GROUP BY a.org_name
+      ORDER BY SUM(a.contract_value) DESC
       LIMIT 15
-    `;
+    `);
 
-    const departments = db.prepare(query).all();
-
-    // Format values nicely
     const data = departments.map(d => ({
       ...d,
-      value: d.value || 0,
-      avgBids: d.avgBids ? parseFloat(d.avgBids.toFixed(2)) : 0,
-      avgDelay: d.avgDelay ? parseFloat(d.avgDelay.toFixed(1)) : 0,
-      singleBidRate: d.singleBidRate ? parseFloat(d.singleBidRate.toFixed(1)) : 0
+      value: d.value ? Number(d.value) : 0,
+      avgBids: d.avgBids ? parseFloat(Number(d.avgBids).toFixed(2)) : 0,
+      avgDelay: d.avgDelay ? parseFloat(Number(d.avgDelay).toFixed(1)) : 0,
+      singleBidRate: d.singleBidRate ? parseFloat(Number(d.singleBidRate).toFixed(1)) : 0
     }));
 
     return NextResponse.json({
@@ -38,8 +34,7 @@ export async function GET() {
   } catch (error) {
     console.error('Database query error in top-departments:', error);
 
-    // Fallback Mock data
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
+    if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
       const mockDeps = [
         { department: "National Highways Authority of India (NHAI)", contracts: 12450, value: 184500000000, avgBids: 4.2, avgDelay: 45.2, singleBidContracts: 950, singleBidRate: 7.6 },
         { department: "Military Engineer Services (MES)", contracts: 45120, value: 92400000000, avgBids: 3.1, avgDelay: 32.8, singleBidContracts: 4820, singleBidRate: 10.7 },

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getWritableDb } from '@/lib/db';
+import { execute, queryOne } from '@/lib/postgres';
 
 export async function POST(request) {
   try {
@@ -17,34 +17,27 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Invalid email format" }, { status: 400 });
     }
 
-    const writeDb = getWritableDb();
-    let result;
-    try {
-      const stmt = writeDb.prepare(`
-        INSERT INTO subscriptions (email, webhook_url, alert_type, min_value, org_name)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-
-      result = stmt.run(
-        email,
-        webhookUrl || null,
-        alertType || 'all',
-        minValue ? parseFloat(minValue) : null,
-        orgName || null
-      );
-    } finally {
-      writeDb.close();
-    }
+    const result = await queryOne(`
+      INSERT INTO subscriptions (email, webhook_url, alert_type, min_value, org_name)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `, [
+      email,
+      webhookUrl || null,
+      alertType || 'all',
+      minValue ? parseFloat(minValue) : null,
+      orgName || null
+    ]);
 
     return NextResponse.json({
       success: true,
-      subscriptionId: result.lastInsertRowid,
+      subscriptionId: result?.id,
       message: "Subscription successfully registered for watchdog alerts."
     });
 
   } catch (error) {
     console.error('Subscription error:', error);
-    if (error.message === 'DATABASE_UNAVAILABLE') {
+    if (error.message === 'DATABASE_UNAVAILABLE' || error.code === 'ECONNREFUSED') {
       return NextResponse.json({
         success: false,
         message: "Database is currently being built or optimized. Please try again later.",

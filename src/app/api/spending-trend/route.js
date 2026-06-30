@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/postgres';
 
 export async function GET() {
   try {
-    const db = getDb();
-
-    const trendQuery = `
+    // Use the materialized view for monthly summaries
+    const trend = await query(`
       SELECT 
-        year_month as date,
-        total_contracts as contracts,
-        total_value as value,
-        avg_bids as avgBids
-      FROM monthly_summary
-      WHERE year_month IS NOT NULL AND year_month != '' AND year_month >= '2011-01'
-      ORDER BY year_month ASC
-    `;
-
-    const trend = db.prepare(trendQuery).all();
+        TO_CHAR(month_start, 'YYYY-MM') as date,
+        SUM(contract_count)::int as contracts,
+        SUM(total_value)::bigint as value,
+        AVG(avg_bids)::numeric(10,2) as "avgBids"
+      FROM mv_monthly_summary
+      WHERE month_start IS NOT NULL AND month_start >= '2011-01-01'
+      GROUP BY TO_CHAR(month_start, 'YYYY-MM')
+      ORDER BY date ASC
+    `);
 
     return NextResponse.json({
       success: true,
@@ -25,18 +23,17 @@ export async function GET() {
   } catch (error) {
     console.error('Database query error in spending-trend:', error);
 
-    // Handle database locked or tables not initialized yet
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
-      // Return high-quality mock trend data for styling/fallback
+    // Handle database unavailable
+    if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
       const mockData = [];
       const startYear = 2018;
       const endYear = 2026;
       const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 
-      let baseValue = 500000000; // 50 Cr
+      let baseValue = 500000000;
       for (let y = startYear; y <= endYear; y++) {
         for (const m of months) {
-          if (y === 2026 && parseInt(m) > 6) break; // limit to current time
+          if (y === 2026 && parseInt(m) > 6) break;
           baseValue += (Math.random() - 0.4) * 80000000;
           mockData.push({
             date: `${y}-${m}`,
@@ -54,6 +51,27 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // If materialized view doesn't exist yet, fall back to direct aggregation
+    try {
+      const trend = await query(`
+        SELECT 
+          TO_CHAR(date_trunc('month', award_date), 'YYYY-MM') as date,
+          COUNT(*)::int as contracts,
+          SUM(contract_value)::bigint as value,
+          AVG(bids_received)::numeric(10,2) as "avgBids"
+        FROM aoc_clean
+        WHERE award_date IS NOT NULL AND award_date >= '2011-01-01'
+        GROUP BY date_trunc('month', award_date)
+        ORDER BY date ASC
+      `);
+
+      return NextResponse.json({
+        success: true,
+        data: trend
+      });
+    } catch (fallbackError) {
+      console.error('Fallback query also failed:', fallbackError);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
   }
 }

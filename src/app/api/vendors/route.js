@@ -1,32 +1,27 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/postgres';
 
 export async function GET() {
   try {
-    const db = getDb();
-
-    // Query top 15 vendors by total contract value
-    const query = `
+    const vendors = await query(`
       SELECT 
         vendor_name as vendor,
-        total_contracts as contracts,
-        total_value as value,
-        single_bid_wins as singleBidWins,
-        avg_bids as avgBids,
-        (single_bid_wins * 100.0 / total_contracts) as singleBidRate
+        total_contracts_won::int as contracts,
+        total_value_won::bigint as value,
+        single_bid_wins::int as "singleBidWins",
+        avg_bids_per_tender::numeric(10,2) as "avgBids",
+        ROUND(single_bid_wins * 100.0 / NULLIF(total_contracts_won, 0), 1) as "singleBidRate"
       FROM vendor_summary
       WHERE vendor_name IS NOT NULL AND vendor_name != '' AND vendor_name != 'Unknown'
-      ORDER BY total_value DESC
+      ORDER BY total_value_won DESC
       LIMIT 15
-    `;
-
-    const vendors = db.prepare(query).all();
+    `);
 
     const data = vendors.map(v => ({
       ...v,
-      value: v.value || 0,
-      avgBids: v.avgBids ? parseFloat(v.avgBids.toFixed(2)) : 0,
-      singleBidRate: v.singleBidRate ? parseFloat(v.singleBidRate.toFixed(1)) : 0
+      value: v.value ? Number(v.value) : 0,
+      avgBids: v.avgBids ? parseFloat(Number(v.avgBids).toFixed(2)) : 0,
+      singleBidRate: v.singleBidRate ? parseFloat(Number(v.singleBidRate).toFixed(1)) : 0
     }));
 
     return NextResponse.json({
@@ -36,8 +31,7 @@ export async function GET() {
   } catch (error) {
     console.error('Database query error in vendors:', error);
 
-    // Fallback Mock data
-    if (error.code === 'SQLITE_BUSY' || error.message.includes('no such table') || error.message === 'DATABASE_UNAVAILABLE') {
+    if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
       const mockVendors = [
         { vendor: "Larsen & Toubro Limited (L&T)", contracts: 1450, value: 345000000000, singleBidWins: 45, avgBids: 4.8, singleBidRate: 3.1 },
         { vendor: "Tata Projects Limited", contracts: 920, value: 182000000000, singleBidWins: 32, avgBids: 4.5, singleBidRate: 3.5 },
