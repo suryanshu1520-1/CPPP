@@ -1,0 +1,14 @@
+# Ignore everything
+*
+
+# Allow folders so Git can scan them
+!*/
+
+# Allow markdown files
+!*.md
+
+# Allow netlify.toml
+!netlify.toml
+
+# Allow .gitignore itself
+!.gitignore
