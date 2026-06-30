@@ -1,6 +1,5 @@
 [build]
-  command = "cd dashboard-ui && npm run build"
-  publish = "dashboard-ui/.next"
+  base = "dashboard-ui"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
