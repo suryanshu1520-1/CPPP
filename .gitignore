@@ -48,3 +48,6 @@ build/
 # Ignore generated SQL output files (too large for git)
 scripts/sql_output/
 *.tmp
+
+# AutoClaw KDream data
+.autoclaw/

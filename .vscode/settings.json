@@ -1,0 +1,6 @@
+{
+    "cline.apiProvider": "custom",
+    "cline.customEndpoint": "https://sk1-zai-org-GLM-5-2.hf.space",
+    "cline.customApiKey": "YOUR_API_KEY_HERE",
+    "cline.customModel": "GLM-5-2"
+}
