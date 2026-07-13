@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "next": "16.2.9",
     "postgres": "^3.4.9"
   }
 }
