@@ -1,0 +1,2 @@
+INSERT INTO vendor_summary (vendor_id, vendor_name, active_status, total_contracts_won, total_value_won, single_bid_wins, avg_bids_per_tender)
+                           VALUES ('358d18c5-fe8f-5bf2-b975-51e1b567a73c', 'ANSHUMAN TRIPATHY,MD LIYAQUAT ALI,PRASANTA PATTANAIK,BIDHUBHUSAN JENA,SANTOSINI PATI,NIBEDITA NAYAK,NIRMALA KUMAR DAS', true, 3, 8917122.0, 0, 7.0) ON CONFLICT (vendor_name) DO NOTHING;

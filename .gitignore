@@ -1,41 +1,53 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Ignore everything
+*
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Allow folders so Git can scan them
+!*/
 
-# testing
-/coverage
+# Allow markdown files
+!*.md
 
-# next.js
-/.next/
-/out/
+# Allow netlify.toml
+!netlify.toml
 
-# production
-/build
+# Allow .gitignore itself
+!.gitignore
 
-# misc
-.DS_Store
-*.pem
+# Allow source code files
+!*.py
+!*.js
+!*.jsx
+!*.ts
+!*.tsx
+!*.css
+!*.json
+!*.mjs
+!*.toml
+!*.sql
+!*.html
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# Allow specific config files
+!*.env.local
+!.prettierrc*
+!.eslintrc*
+!tailwind.config.*
+!postcss.config.*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Always ignore sensitive files
+*.env
+!.env.local
+*.db
+*.sqlite
+node_modules/
+.next/
+.nuxt/
+dist/
+build/
+*.log
 
-# vercel
-.vercel
+# Ignore generated SQL output files (too large for git)
+scripts/sql_output/
+*.tmp
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# AutoClaw KDream data
+.autoclaw/
