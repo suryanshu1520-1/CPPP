@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/turso';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(request) {
     try {
@@ -9,20 +7,6 @@ export async function GET(request) {
         const org = searchParams.get('org') || '';
         const limit = parseInt(searchParams.get('limit') || '8');
 
-        // 1. Fast Cache Path for Global View
-        if (!org) {
-            const cachePath = path.resolve(process.cwd(), 'src/app/api/metrics/money-flow/global_sankey.json');
-            if (fs.existsSync(cachePath)) {
-                const cacheContent = fs.readFileSync(cachePath, 'utf8');
-                return NextResponse.json({
-                    success: true,
-                    org: 'All Departments',
-                    data: JSON.parse(cacheContent)
-                });
-            }
-        }
-
-        // 2. Dynamic execution path
         let nodes = [];
         let links = [];
 
@@ -30,8 +14,8 @@ export async function GET(request) {
             const vendorRows = await query(`
                 SELECT 
                     vendor_name as vendor,
-                    SUM(contract_value)::bigint as value,
-                    COUNT(*)::int as contracts
+                    SUM(contract_value) as value,
+                    COUNT(*) as contracts
                 FROM aoc_clean
                 WHERE org_name = $1
                     AND contract_value > 0
@@ -64,8 +48,8 @@ export async function GET(request) {
             const deptRows = await query(`
                 SELECT 
                     org_name as dept,
-                    SUM(contract_value)::bigint as value,
-                    COUNT(*)::int as contracts
+                    SUM(contract_value) as value,
+                    COUNT(*) as contracts
                 FROM aoc_clean
                 WHERE contract_value > 0
                     AND org_name IS NOT NULL
@@ -97,7 +81,7 @@ export async function GET(request) {
                 const vendorRows = await query(`
                     SELECT 
                         vendor_name as vendor,
-                        SUM(contract_value)::bigint as value
+                        SUM(contract_value) as value
                     FROM aoc_clean
                     WHERE org_name = $1
                         AND contract_value > 0

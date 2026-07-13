@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/turso';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(request) {
     try {
@@ -9,48 +7,35 @@ export async function GET(request) {
         const org = searchParams.get('org') || '';
         const year = searchParams.get('year') || '';
 
-        // 1. Fast Cache Path for Global View
-        if (!org) {
-            const cachePath = path.resolve(process.cwd(), 'src/app/api/metrics/fiscal-heatmap/global_heatmap.json');
-            if (fs.existsSync(cachePath)) {
-                const cacheContent = fs.readFileSync(cachePath, 'utf8');
-                return NextResponse.json({
-                    success: true,
-                    org: 'All Departments',
-                    data: JSON.parse(cacheContent)
-                });
-            }
-        }
-
-        // 2. Dynamic execution path
+        // Dynamic execution path
         let sql;
         const params = [];
 
         if (org) {
             sql = `
                 SELECT 
-                    TO_CHAR(contract_date, 'YYYY-MM-DD') as date,
-                    COUNT(*)::int as contracts,
-                    SUM(contract_value)::bigint as value,
-                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidCount"
+                    strftime('%Y-%m-%d', contract_date) as date,
+                    COUNT(*) as contracts,
+                    SUM(contract_value) as value,
+                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END) as "singleBidCount"
                 FROM aoc_clean
                 WHERE org_name = $1
                     AND contract_date IS NOT NULL
-                GROUP BY TO_CHAR(contract_date, 'YYYY-MM-DD')
+                GROUP BY strftime('%Y-%m-%d', contract_date)
                 ORDER BY date ASC
             `;
             params.push(org);
         } else {
             sql = `
                 SELECT 
-                    TO_CHAR(contract_date, 'YYYY-MM-DD') as date,
-                    COUNT(*)::int as contracts,
-                    SUM(contract_value)::bigint as value,
-                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidCount"
+                    strftime('%Y-%m-%d', contract_date) as date,
+                    COUNT(*) as contracts,
+                    SUM(contract_value) as value,
+                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END) as "singleBidCount"
                 FROM aoc_clean
                 WHERE contract_date IS NOT NULL
                     AND contract_date >= '2024-01-01'
-                GROUP BY TO_CHAR(contract_date, 'YYYY-MM-DD')
+                GROUP BY strftime('%Y-%m-%d', contract_date)
                 ORDER BY date ASC
             `;
         }
