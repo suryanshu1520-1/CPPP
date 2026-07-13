@@ -32,6 +32,12 @@
 !.eslintrc*
 !tailwind.config.*
 !postcss.config.*
+!next.config.*
+!tsconfig.json
+!jsconfig.json
+!package-lock.json
+!*.config.mjs
+!*.config.js
 
 # Always ignore sensitive files
 *.env

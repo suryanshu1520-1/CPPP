@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   PRISTINE LIGHT DESIGN SYSTEM
+   Clinical, authoritative, minimal — inspired by Vercel/Linear
+   ============================================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #FAFAFA;
+  --bg-secondary: #F3F4F6;
+  --bg-card: #FFFFFF;
+
+  /* Typography */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+
+  /* Borders — 1px subtle gray dividers only */
+  --border-subtle: #E5E7EB;
+  --border-hover: #D1D5DB;
+
+  /* Accents */
+  --accent-blue: #2563EB;
+  --accent-blue-glow: rgba(37, 99, 235, 0.1);
+  --accent-green: #0D9488;
+  --accent-amber: #D97706;
+  --accent-purple: #7C3AED;
+
+  /* Risk spectrum — Crimson for corruption signals */
+  --risk-baseline: #2563EB;
+  --risk-medium: #D97706;
+  --risk-high: #F59E0B;
+  --risk-catastrophic: #D90429;
+  /* Crimson — exclusive for high-confidence anomalies */
+
+  /* Typography */
+  --font-header: 'Outfit', 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-hindi: 'Noto Sans Devanagari', sans-serif;
+}
+
+/* ============================================================
+   GLOBAL BASE STYLES
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-header);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.25rem;
+}
+
+h2 {
+  font-size: 1.875rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+h4 {
+  font-size: 1.25rem;
+}
+
+h5 {
+  font-size: 1.125rem;
+}
+
+h6 {
+  font-size: 1rem;
+}
+
+/* Tabular numerals for data precision */
+.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Hindi text */
+.lang-hi {
+  font-family: var(--font-hindi);
+}
+
+/* ============================================================
+   PANELS — Minimal glassmorphism
+   No heavy shadows, rely on 1px borders and negative space
+   ============================================================ */
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.panel:hover {
+  border-color: var(--border-hover);
+}
+
+/* ============================================================
+   SCROLLBAR — Minimal
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.animate-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.animate-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.animate-delay-3 {
+  animation-delay: 0.3s;
+}
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+
+/* Contextual subtext — slate-colored context beneath large values */
+.context-subtext {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin-top: 0.25rem;
+}
+
+/* Warning block for SME bid feasibility */
+.warning-block {
+  background: rgba(217, 4, 41, 0.04);
+  border: 1px solid rgba(217, 4, 41, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  color: var(--text-primary);
+}
+
+.warning-block-title {
+  color: var(--risk-catastrophic);
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Crimson accent for corruption signals */
+.text-crimson {
+  color: var(--risk-catastrophic);
+}
+
+.bg-crimson {
+  background-color: var(--risk-catastrophic);
+}
+
+.border-crimson {
+  border-color: var(--risk-catastrophic);
+}
