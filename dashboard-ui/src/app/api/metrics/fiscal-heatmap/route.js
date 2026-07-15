@@ -1,50 +1,29 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/turso';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const org = searchParams.get('org') || '';
-        const year = searchParams.get('year') || '';
 
-        // Dynamic execution path
-        let sql;
-        const params = [];
-
-        if (org) {
-            sql = `
-                SELECT 
-                    strftime('%Y-%m-%d', contract_date) as date,
-                    COUNT(*) as contracts,
-                    SUM(contract_value) as value,
-                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END) as "singleBidCount"
-                FROM aoc_clean
-                WHERE org_name = $1
-                    AND contract_date IS NOT NULL
-                GROUP BY strftime('%Y-%m-%d', contract_date)
-                ORDER BY date ASC
-            `;
-            params.push(org);
-        } else {
-            sql = `
-                SELECT 
-                    strftime('%Y-%m-%d', contract_date) as date,
-                    COUNT(*) as contracts,
-                    SUM(contract_value) as value,
-                    SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END) as "singleBidCount"
-                FROM aoc_clean
-                WHERE contract_date IS NOT NULL
-                    AND contract_date >= '2024-01-01'
-                GROUP BY strftime('%Y-%m-%d', contract_date)
-                ORDER BY date ASC
-            `;
+        // daily_awards holds 2024+ daily rollups; org_name = '' is the global rollup.
+        // PostgREST caps responses at 1000 rows, so page until exhausted.
+        const rows = [];
+        for (let from = 0; ; from += 1000) {
+            const { data: page, error } = await supabase
+                .from('daily_awards')
+                .select('award_date, contracts, total_value, single_bid_count')
+                .eq('org_name', org)
+                .order('award_date', { ascending: true })
+                .range(from, from + 999);
+            if (error) throw new Error(error.message);
+            rows.push(...(page || []));
+            if (!page || page.length < 1000) break;
         }
 
-        const rows = await query(sql, params);
-
         // Transform into calendar heatmap format
-        const data = rows.map(r => {
-            const dateStr = r.date;
+        const data = (rows || []).map(r => {
+            const dateStr = r.award_date;
             const parts = dateStr.split('-');
             if (parts.length < 3) return null;
 
@@ -58,7 +37,7 @@ export async function GET(request) {
             const weekNum = Math.ceil(((dateObj - onejan) / 86400000 + onejan.getDay() + 1) / 7);
 
             const contracts = Number(r.contracts);
-            const singleBidRate = contracts > 0 ? (Number(r.singleBidCount) / contracts) * 100 : 0;
+            const singleBidRate = contracts > 0 ? (Number(r.single_bid_count) / contracts) * 100 : 0;
 
             return {
                 date: dateStr,
@@ -66,7 +45,7 @@ export async function GET(request) {
                 week: weekNum,
                 month: m,
                 year: y,
-                value: r.value ? Number(r.value) : 0,
+                value: r.total_value ? Number(r.total_value) : 0,
                 contracts,
                 singleBidRate: parseFloat(singleBidRate.toFixed(1))
             };
@@ -80,16 +59,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error("Error in fiscal-heatmap API:", error);
-
-        if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
-            return NextResponse.json({
-                success: false,
-                message: "Database is locked or optimizing. Showing fallback heatmap data.",
-                isLocked: true,
-                data: []
-            });
-        }
-
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
@@ -16,8 +17,21 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Invalid email format" }, { status: 400 });
     }
 
-    // Generate random subscription ID
+    // RLS on alert_subscriptions is insert-only (no select), so generate the
+    // id here rather than reading it back via INSERT ... RETURNING.
     const subscriptionId = crypto.randomUUID();
+    const { error } = await supabase
+      .from('alert_subscriptions')
+      .insert({
+        id: subscriptionId,
+        email,
+        webhook_url: webhookUrl || null,
+        alert_type: alertType || null,
+        org_name: orgName || null,
+        min_value: minValue || null,
+      });
+
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({
       success: true,

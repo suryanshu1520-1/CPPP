@@ -249,10 +249,11 @@ export interface BidsDistributionData {
 export interface ScatterplotPoint {
     contract_id: string;
     tender_id: string;
+    tender_title?: string;
     org_name: string;
     vendor_name: string;
     contract_value: number;
-    bid_window_days: number;
+    bid_window_days?: number;
     award_delay_days: number;
     bids_received: number;
     is_anomaly: boolean;

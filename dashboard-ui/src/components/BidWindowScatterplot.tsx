@@ -1,14 +1,18 @@
 /**
- * Bid Window vs. Award Delay Scatterplot — Client Component
+ * Award Delay vs. Bids Received Anomaly Scatterplot — Client Component
  *
  * A stark white canvas with extremely subtle grey quadrants.
  * Normal contracts are muted grey; anomalous contracts pop in Crimson.
  * Interactive tooltips show contract details on hover.
+ *
+ * Plots award_delay_days (x) against bids_received (y) — the two dimensions
+ * actually available from the precomputed scatterplot data. Anomaly status
+ * is trusted from the source data (`is_anomaly`) rather than recomputed here.
  */
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
     ScatterChart,
     Scatter,
@@ -25,15 +29,15 @@ import type { ScatterplotPoint } from '@/types/worker-schemas';
 
 interface BidWindowScatterplotProps {
     data: ScatterplotPoint[];
+    onPointClick?: (point: ScatterplotPoint) => void;
 }
 
 interface TooltipPayload {
-    contract_id: string;
     tender_id: string;
+    tender_title?: string;
     org_name: string;
     vendor_name: string;
     contract_value: number;
-    bid_window_days: number;
     award_delay_days: number;
     bids_received: number;
     is_anomaly: boolean;
@@ -50,8 +54,98 @@ const formatCurrency = (value: number): string => {
     return `₹${value.toLocaleString('en-IN')}`;
 };
 
+// Anomaly threshold lines: prolonged delay with minimal competition
+const ANOMALY_THRESHOLD_X = 30; // award delay days
+const ANOMALY_THRESHOLD_Y = 2.5; // bids received
+
+// Custom tooltip — declared outside the component so it isn't recreated
+// (and reset) on every render.
+function CustomTooltip({
+    active,
+    payload,
+}: {
+    active?: boolean;
+    payload?: { payload: TooltipPayload }[];
+}) {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const item = payload[0].payload;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="bg-white border border-border-subtle rounded-lg px-4 py-3 shadow-sm max-w-xs"
+        >
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-2">
+                <div
+                    className={`w-2 h-2 rounded-full ${item.is_anomaly ? 'bg-crimson' : 'bg-ink-muted'
+                        }`}
+                />
+                <span className="text-xs font-medium text-ink-secondary">
+                    {item.tender_id}
+                </span>
+            </div>
+
+            {/* Title, department & vendor */}
+            {item.tender_title && (
+                <p className="text-xs text-ink-primary font-medium truncate" title={item.tender_title}>
+                    {item.tender_title}
+                </p>
+            )}
+            <p className="text-xs text-ink-primary truncate" title={item.org_name}>
+                {item.org_name}
+            </p>
+            <p className="text-xs text-ink-muted mt-0.5 truncate" title={item.vendor_name}>
+                {item.vendor_name}
+            </p>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                <div>
+                    <p className="text-xs text-ink-muted">Award Delay</p>
+                    <p
+                        className={`text-sm font-semibold numeric ${item.award_delay_days > 30 ? 'text-crimson' : 'text-ink-primary'
+                            }`}
+                    >
+                        {item.award_delay_days}d
+                    </p>
+                </div>
+                <div>
+                    <p className="text-xs text-ink-muted">Bids Received</p>
+                    <p
+                        className={`text-sm font-semibold numeric ${item.bids_received <= 2 ? 'text-crimson' : 'text-ink-primary'
+                            }`}
+                    >
+                        {item.bids_received}
+                    </p>
+                </div>
+                <div className="col-span-2">
+                    <p className="text-xs text-ink-muted">Value</p>
+                    <p className="text-sm font-semibold numeric text-ink-primary">
+                        {formatCurrency(item.contract_value)}
+                    </p>
+                </div>
+            </div>
+
+            {item.is_anomaly && (
+                <div className="mt-2 pt-2 border-t border-crimson/20">
+                    <p className="text-xs font-medium text-crimson">
+                        {item.anomaly_type === 'single_bid'
+                            ? 'Single bid — no competition'
+                            : 'Prolonged award delay with minimal competition'}
+                    </p>
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
 export default function BidWindowScatterplot({
     data,
+    onPointClick,
 }: BidWindowScatterplotProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -62,100 +156,6 @@ export default function BidWindowScatterplot({
             </div>
         );
     }
-
-    // Anomaly threshold lines: sub-5 day bid windows with near-instant awards
-    const anomalyThresholdX = 5;
-    const anomalyThresholdY = 10;
-
-    // Custom tooltip
-    const CustomTooltip = ({
-        active,
-        payload,
-    }: {
-        active?: boolean;
-        payload?: { payload: TooltipPayload }[];
-    }) => {
-        if (!active || !payload || payload.length === 0) return null;
-
-        const item = payload[0].payload;
-
-        return (
-            <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                className="bg-white border border-border-subtle rounded-lg px-4 py-3 shadow-sm max-w-xs"
-            >
-                {/* Header */}
-                <div className="flex items-center gap-2 mb-2">
-                    <div
-                        className={`w-2 h-2 rounded-full ${item.is_anomaly ? 'bg-crimson' : 'bg-ink-muted'
-                            }`}
-                    />
-                    <span className="text-xs font-medium text-ink-secondary">
-                        {item.tender_id}
-                    </span>
-                </div>
-
-                {/* Department & Vendor */}
-                <p className="text-xs text-ink-primary font-medium truncate" title={item.org_name}>
-                    {item.org_name}
-                </p>
-                <p className="text-xs text-ink-muted mt-0.5 truncate" title={item.vendor_name}>
-                    {item.vendor_name}
-                </p>
-
-                {/* Metrics */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
-                    <div>
-                        <p className="text-xs text-ink-muted">Bid Window</p>
-                        <p
-                            className={`text-sm font-semibold numeric ${item.bid_window_days < 5 ? 'text-crimson' : 'text-ink-primary'
-                                }`}
-                        >
-                            {item.bid_window_days}d
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-ink-muted">Award Delay</p>
-                        <p
-                            className={`text-sm font-semibold numeric ${item.award_delay_days < 10 && item.bid_window_days < 5
-                                    ? 'text-crimson'
-                                    : 'text-ink-primary'
-                                }`}
-                        >
-                            {item.award_delay_days}d
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-ink-muted">Bids</p>
-                        <p
-                            className={`text-sm font-semibold numeric ${item.bids_received === 1 ? 'text-crimson' : 'text-ink-primary'
-                                }`}
-                        >
-                            {item.bids_received}
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-ink-muted">Value</p>
-                        <p className="text-sm font-semibold numeric text-ink-primary">
-                            {formatCurrency(item.contract_value)}
-                        </p>
-                    </div>
-                </div>
-
-                {item.is_anomaly && (
-                    <div className="mt-2 pt-2 border-t border-crimson/20">
-                        <p className="text-xs font-medium text-crimson">
-                            {item.anomaly_type === 'rush_job'
-                                ? 'Rush job — sub-5 day bid window'
-                                : 'Single bid — no competition'}
-                        </p>
-                    </div>
-                )}
-            </motion.div>
-        );
-    };
 
     return (
         <div className="w-full">
@@ -173,13 +173,13 @@ export default function BidWindowScatterplot({
                         horizontal={false}
                     />
 
-                    {/* X Axis: Bid Window Days */}
+                    {/* X Axis: Award Delay Days */}
                     <XAxis
                         type="number"
-                        dataKey="bid_window_days"
-                        name="Bid Window (Days)"
+                        dataKey="award_delay_days"
+                        name="Award Delay (Days)"
                         label={{
-                            value: 'Bid Window (Days)',
+                            value: 'Award Delay (Days)',
                             position: 'insideBottom',
                             offset: -14,
                             fontSize: 11,
@@ -193,16 +193,16 @@ export default function BidWindowScatterplot({
                             fontSize: 11,
                             fontFamily: 'Inter, sans-serif',
                         }}
-                        domain={[0, 'auto']}
+                        domain={[0, 365]}
                     />
 
-                    {/* Y Axis: Award Delay Days */}
+                    {/* Y Axis: Bids Received */}
                     <YAxis
                         type="number"
-                        dataKey="award_delay_days"
-                        name="Award Delay (Days)"
+                        dataKey="bids_received"
+                        name="Bids Received"
                         label={{
-                            value: 'Award Delay (Days)',
+                            value: 'Bids Received',
                             angle: -90,
                             position: 'insideLeft',
                             offset: 10,
@@ -217,18 +217,19 @@ export default function BidWindowScatterplot({
                             fontSize: 11,
                             fontFamily: 'Inter, sans-serif',
                         }}
-                        domain={[0, 'auto']}
+                        domain={[0, 13]}
+                        ticks={[1, 2, 3, 4, 5, 6, 8, 10, 12]}
                     />
 
                     {/* Anomaly threshold lines */}
                     <ReferenceLine
-                        x={anomalyThresholdX}
+                        x={ANOMALY_THRESHOLD_X}
                         stroke="#D90429"
                         strokeOpacity={0.15}
                         strokeDasharray="4 4"
                     />
                     <ReferenceLine
-                        y={anomalyThresholdY}
+                        y={ANOMALY_THRESHOLD_Y}
                         stroke="#D90429"
                         strokeOpacity={0.15}
                         strokeDasharray="4 4"
@@ -237,18 +238,21 @@ export default function BidWindowScatterplot({
                     <Tooltip content={<CustomTooltip />} cursor={false} />
 
                     {/* Scatter points */}
-                    <Scatter>
+                    <Scatter
+                        onClick={(node: any) => {
+                            if (node && node.payload) onPointClick?.(node.payload as ScatterplotPoint);
+                        }}
+                    >
                         {data.map((point, index) => {
                             const isHovered = hoveredIndex === index;
-                            const isAnomaly = point.bid_window_days < 5 || point.bids_received === 1;
                             return (
                                 <Cell
                                     key={`cell-${index}`}
-                                    fill={isAnomaly ? '#D90429' : '#9CA3AF'}
+                                    fill={point.is_anomaly ? '#D90429' : '#9CA3AF'}
                                     fillOpacity={
                                         isHovered
                                             ? 1
-                                            : isAnomaly
+                                            : point.is_anomaly
                                                 ? 0.85
                                                 : 0.25
                                     }
@@ -257,7 +261,7 @@ export default function BidWindowScatterplot({
                                     r={
                                         isHovered
                                             ? 8
-                                            : isAnomaly
+                                            : point.is_anomaly
                                                 ? 6
                                                 : 4
                                     }
@@ -272,7 +276,7 @@ export default function BidWindowScatterplot({
             <div className="flex items-center gap-6 mt-4 text-xs text-ink-muted">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-crimson opacity-85" />
-                    <span>Anomalous — rapid award with minimal competition</span>
+                    <span>Anomalous — prolonged delay with minimal competition</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-ink-muted opacity-25" />

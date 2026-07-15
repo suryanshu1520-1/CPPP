@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchR2Json } from '@/lib/turso';
+import { fetchR2Json } from '@/lib/r2';
 
 export async function GET() {
   try {

@@ -27,7 +27,6 @@
 !*.html
 
 # Allow specific config files
-!*.env.local
 !.prettierrc*
 !.eslintrc*
 !tailwind.config.*
@@ -39,9 +38,11 @@
 !*.config.mjs
 !*.config.js
 
-# Always ignore sensitive files
+# Always ignore sensitive files (never commit env files — this repo is public)
+.env
+.env.*
 *.env
-!.env.local
+*.env.*
 *.db
 *.sqlite
 node_modules/

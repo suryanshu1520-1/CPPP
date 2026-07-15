@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Intentional stub: alert_subscriptions rows are persisted (see alerts/subscribe),
+// but nothing dispatches against them yet. Real dispatch needs an email/webhook
+// provider decision (e.g. Resend) plus a scheduler — out of scope until that's chosen.
 export async function POST(request) {
   return executeTrigger();
 }
@@ -14,7 +17,8 @@ async function executeTrigger() {
       success: true,
       processedSubscriptions: 0,
       dispatchesTriggered: 0,
-      dispatches: []
+      dispatches: [],
+      note: 'Stub: no dispatch provider configured yet.'
     });
   } catch (error) {
     console.error('Trigger alerts error:', error);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne } from '@/lib/turso';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request) {
   try {
@@ -16,73 +16,41 @@ export async function GET(request) {
     const weightRush = sumW > 0 ? w2 / sumW : 0.4;
     const weightDelay = sumW > 0 ? w3 / sumW : 0.2;
 
-    let targetType = '';
-    let targetName = '';
-    let sql = '';
+    if (!org && !vendor) {
+      // Leaderboard: top 20 highest-risk organizations by single-bid rate.
+      // PostgREST caps responses at 1000 rows, so page through all orgs.
+      const orgs = [];
+      for (let from = 0; ; from += 1000) {
+        const { data: page, error } = await supabase
+          .from('org_stats')
+          .select('org_name, total_contracts, total_value, single_bid_count, avg_bids, avg_delay_days')
+          .gt('total_contracts', 10)
+          .order('org_name', { ascending: true })
+          .range(from, from + 999);
+        if (error) throw new Error(error.message);
+        orgs.push(...(page || []));
+        if (!page || page.length < 1000) break;
+      }
 
-    if (org) {
-      targetType = 'organization';
-      targetName = org;
-      sql = `
-        SELECT 
-          COUNT(*)::int as "totalContracts",
-          SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidCount",
-          SUM(CASE WHEN bid_window_days >= 0 AND bid_window_days < 7 THEN 1 ELSE 0 END)::int as "rushJobCount",
-          SUM(CASE WHEN award_delay_days > 180 THEN 1 ELSE 0 END)::int as "delayedAwardCount",
-          AVG(bids_received)::numeric(10,2) as "avgBids",
-          AVG(award_delay_days)::numeric(10,1) as "avgDelayDays"
-        FROM aoc_clean
-        WHERE org_name = $1
-      `;
-    } else if (vendor) {
-      targetType = 'vendor';
-      targetName = vendor;
-      sql = `
-        SELECT 
-          COUNT(*)::int as "totalContracts",
-          SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidCount",
-          SUM(CASE WHEN bid_window_days >= 0 AND bid_window_days < 7 THEN 1 ELSE 0 END)::int as "rushJobCount",
-          SUM(CASE WHEN award_delay_days > 180 THEN 1 ELSE 0 END)::int as "delayedAwardCount",
-          AVG(bids_received)::numeric(10,2) as "avgBids",
-          AVG(award_delay_days)::numeric(10,1) as "avgDelayDays"
-        FROM aoc_clean
-        WHERE vendor_name = $1
-      `;
-    } else {
-      // Leaderboard: top 20 highest-risk organizations
-      const highRiskOrgs = await query(`
-        SELECT 
-          org_name as name,
-          COUNT(*)::int as "totalContracts",
-          SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::int as "singleBidCount",
-          AVG(bids_received)::numeric(10,2) as "avgBids",
-          AVG(award_delay_days)::numeric(10,1) as "avgDelayDays"
-        FROM aoc_clean
-        WHERE org_name IS NOT NULL AND org_name != 'Unknown' AND org_name != ''
-        GROUP BY org_name
-        HAVING COUNT(*) > 10
-        ORDER BY 
-          (SUM(CASE WHEN bids_received = 1 THEN 1 ELSE 0 END)::float / COUNT(*)::float) DESC,
-          COUNT(*) DESC
-        LIMIT 20
-      `);
+      const listData = (orgs || [])
+        .map(item => {
+          const totalContracts = Number(item.total_contracts);
+          const singleBidRate = totalContracts ? Number(item.single_bid_count) / totalContracts : 0;
+          const delayFactor = Math.min(1.0, (Number(item.avg_delay_days) || 0) / 180.0);
+          const iri = (singleBidRate * 0.6 + delayFactor * 0.4) * 100.0;
 
-      const listData = highRiskOrgs.map(item => {
-        const totalContracts = Number(item.totalContracts);
-        const singleBidRate = totalContracts ? (Number(item.singleBidCount) / totalContracts) : 0;
-        const delayFactor = Math.min(1.0, (Number(item.avgDelayDays) || 0) / 180.0);
-        const iri = (singleBidRate * 0.6 + delayFactor * 0.4) * 100.0;
-
-        return {
-          name: item.name,
-          totalContracts,
-          singleBidCount: Number(item.singleBidCount),
-          singleBidRate: parseFloat((singleBidRate * 100).toFixed(1)),
-          avgBids: item.avgBids ? parseFloat(Number(item.avgBids).toFixed(2)) : 0,
-          avgDelayDays: item.avgDelayDays ? parseFloat(Number(item.avgDelayDays).toFixed(1)) : 0,
-          iri: parseFloat(iri.toFixed(1))
-        };
-      }).sort((a, b) => b.iri - a.iri);
+          return {
+            name: item.org_name,
+            totalContracts,
+            singleBidCount: Number(item.single_bid_count),
+            singleBidRate: parseFloat((singleBidRate * 100).toFixed(1)),
+            avgBids: item.avg_bids ? parseFloat(Number(item.avg_bids).toFixed(2)) : 0,
+            avgDelayDays: item.avg_delay_days ? parseFloat(Number(item.avg_delay_days).toFixed(1)) : 0,
+            iri: parseFloat(iri.toFixed(1))
+          };
+        })
+        .sort((a, b) => b.iri - a.iri)
+        .slice(0, 20);
 
       return NextResponse.json({
         success: true,
@@ -92,23 +60,43 @@ export async function GET(request) {
       });
     }
 
-    const stats = await queryOne(sql, [targetName]);
-
-    if (!stats || Number(stats.totalContracts) === 0) {
+    // Vendor-level IRI needs per-vendor aggregates, which live in the raw R2
+    // dataset rather than the Supabase aggregate layer. The dashboard only
+    // requests org-level scores; return an empty result for vendor queries.
+    if (vendor) {
       return NextResponse.json({
         success: true,
-        targetType,
-        targetName,
+        targetType: 'vendor',
+        targetName: vendor,
         totalContracts: 0,
         iri: 0,
         components: { singleBidRate: 0, rushJobRate: 0, delayedAwardRate: 0 }
       });
     }
 
-    const total = Number(stats.totalContracts);
-    const singleBidRate = (Number(stats.singleBidCount) || 0) / total;
-    const rushJobRate = (Number(stats.rushJobCount) || 0) / total;
-    const delayedAwardRate = (Number(stats.delayedAwardCount) || 0) / total;
+    const { data: stats, error } = await supabase
+      .from('org_stats')
+      .select('total_contracts, single_bid_count, rush_job_count, delayed_award_count, avg_bids, avg_delay_days')
+      .eq('org_name', org)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+
+    if (!stats || Number(stats.total_contracts) === 0) {
+      return NextResponse.json({
+        success: true,
+        targetType: 'organization',
+        targetName: org,
+        totalContracts: 0,
+        iri: 0,
+        components: { singleBidRate: 0, rushJobRate: 0, delayedAwardRate: 0 }
+      });
+    }
+
+    const total = Number(stats.total_contracts);
+    const singleBidRate = (Number(stats.single_bid_count) || 0) / total;
+    const rushJobRate = (Number(stats.rush_job_count) || 0) / total;
+    const delayedAwardRate = (Number(stats.delayed_award_count) || 0) / total;
 
     const iri = (
       (singleBidRate * weightSingle) +
@@ -118,50 +106,29 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      targetType,
-      targetName,
+      targetType: 'organization',
+      targetName: org,
       totalContracts: total,
       iri: parseFloat(iri.toFixed(1)),
-      avgBids: stats.avgBids ? parseFloat(Number(stats.avgBids).toFixed(2)) : 0,
-      avgDelayDays: stats.avgDelayDays ? parseFloat(Number(stats.avgDelayDays).toFixed(1)) : 0,
+      avgBids: stats.avg_bids ? parseFloat(Number(stats.avg_bids).toFixed(2)) : 0,
+      avgDelayDays: stats.avg_delay_days ? parseFloat(Number(stats.avg_delay_days).toFixed(1)) : 0,
       weights: {
         SingleBid: parseFloat(weightSingle.toFixed(2)),
         RushJob: parseFloat(weightRush.toFixed(2)),
         AwardDelay: parseFloat(weightDelay.toFixed(2))
       },
       components: {
-        singleBidCount: Number(stats.singleBidCount) || 0,
+        singleBidCount: Number(stats.single_bid_count) || 0,
         singleBidRate: parseFloat((singleBidRate * 100).toFixed(1)),
-        rushJobCount: Number(stats.rushJobCount) || 0,
+        rushJobCount: Number(stats.rush_job_count) || 0,
         rushJobRate: parseFloat((rushJobRate * 100).toFixed(1)),
-        delayedAwardCount: Number(stats.delayedAwardCount) || 0,
+        delayedAwardCount: Number(stats.delayed_award_count) || 0,
         delayedAwardRate: parseFloat((delayedAwardRate * 100).toFixed(1))
       }
     });
 
   } catch (error) {
     console.error("Error in IRI API:", error);
-
-    if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
-      return NextResponse.json({
-        success: false,
-        message: "Database is locked or currently being rebuilt. Showing mock integrity risk metrics.",
-        isLocked: true,
-        targetType: 'organization',
-        targetName: "Military Engineer Services (MES)",
-        totalContracts: 1245,
-        iri: 68.4,
-        avgBids: 2.1,
-        avgDelayDays: 114.5,
-        weights: { SingleBid: 0.4, RushJob: 0.4, AwardDelay: 0.2 },
-        components: {
-          singleBidCount: 520, singleBidRate: 41.8,
-          rushJobCount: 350, rushJobRate: 28.1,
-          delayedAwardCount: 145, delayedAwardRate: 11.6
-        }
-      });
-    }
-
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

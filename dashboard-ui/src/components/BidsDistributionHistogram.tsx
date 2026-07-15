@@ -24,6 +24,7 @@ import type { BidsDistributionData } from '@/types/worker-schemas';
 
 interface BidsDistributionHistogramProps {
     data: BidsDistributionData[];
+    onBarClick?: (bucket: BidsDistributionData) => void;
 }
 
 interface TooltipPayload {
@@ -33,10 +34,55 @@ interface TooltipPayload {
     is_single_bid: boolean;
 }
 
+// Custom tooltip — axis-free, clean, shows exact numbers. Declared outside the
+// component so it isn't recreated (and reset) on every render.
+function CustomTooltip({
+    active,
+    payload,
+}: {
+    active?: boolean;
+    payload?: { payload: TooltipPayload }[];
+}) {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const item = payload[0].payload;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="bg-white border border-border-subtle rounded-lg px-4 py-3 shadow-sm"
+        >
+            <p className="text-xs font-medium text-ink-secondary">{item.bids_category}</p>
+            <p className="text-lg font-semibold numeric text-ink-primary mt-1">
+                {item.count.toLocaleString()}
+            </p>
+            <p className="text-xs text-ink-muted mt-0.5">
+                {item.percentage.toFixed(1)}% of all contracts
+            </p>
+            {item.bids_category === '1 Bid' && (
+                <p className="text-xs text-crimson mt-1">
+                    No competitive bidding
+                </p>
+            )}
+        </motion.div>
+    );
+}
+
 export default function BidsDistributionHistogram({
     data,
+    onBarClick,
 }: BidsDistributionHistogramProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+    // Sort by bids category — computed unconditionally so hook order stays stable.
+    const sortedData = useMemo(() => {
+        const order = ['1 Bid', '2 Bids', '3 Bids', '4 Bids', '5+ Bids'];
+        return [...(data || [])].sort(
+            (a, b) => order.indexOf(a.bids_category) - order.indexOf(b.bids_category)
+        );
+    }, [data]);
 
     if (!data || data.length === 0) {
         return (
@@ -46,49 +92,6 @@ export default function BidsDistributionHistogram({
         );
     }
 
-    // Sort by bids category
-    const sortedData = useMemo(() => {
-        const order = ['1 Bid', '2 Bids', '3 Bids', '4 Bids', '5+ Bids'];
-        return [...data].sort(
-            (a, b) => order.indexOf(a.bids_category) - order.indexOf(b.bids_category)
-        );
-    }, [data]);
-
-    // Custom tooltip — axis-free, clean, shows exact numbers
-    const CustomTooltip = ({
-        active,
-        payload,
-    }: {
-        active?: boolean;
-        payload?: { payload: TooltipPayload }[];
-    }) => {
-        if (!active || !payload || payload.length === 0) return null;
-
-        const item = payload[0].payload;
-
-        return (
-            <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                className="bg-white border border-border-subtle rounded-lg px-4 py-3 shadow-sm"
-            >
-                <p className="text-xs font-medium text-ink-secondary">{item.bids_category}</p>
-                <p className="text-lg font-semibold numeric text-ink-primary mt-1">
-                    {item.count.toLocaleString()}
-                </p>
-                <p className="text-xs text-ink-muted mt-0.5">
-                    {item.percentage.toFixed(1)}% of all contracts
-                </p>
-                {item.bids_category === '1 Bid' && (
-                    <p className="text-xs text-crimson mt-1">
-                        No competitive bidding
-                    </p>
-                )}
-            </motion.div>
-        );
-    };
-
     return (
         <div className="w-full">
             <ResponsiveContainer width="100%" height={320}>
@@ -96,6 +99,11 @@ export default function BidsDistributionHistogram({
                     data={sortedData}
                     margin={{ top: 16, right: 16, left: 0, bottom: 0 }}
                     onMouseLeave={() => setHoveredIndex(null)}
+                    onClick={(chartState: any) => {
+                        if (chartState?.activePayload?.length) {
+                            onBarClick?.(chartState.activePayload[0].payload as BidsDistributionData);
+                        }
+                    }}
                 >
                     {/* No axis lines — only subtle tick marks */}
                     <XAxis

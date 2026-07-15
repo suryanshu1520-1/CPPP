@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/turso';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request) {
     try {
@@ -11,22 +11,16 @@ export async function GET(request) {
         let links = [];
 
         if (org) {
-            const vendorRows = await query(`
-                SELECT 
-                    vendor_name as vendor,
-                    SUM(contract_value) as value,
-                    COUNT(*) as contracts
-                FROM aoc_clean
-                WHERE org_name = $1
-                    AND contract_value > 0
-                    AND vendor_name IS NOT NULL
-                    AND vendor_name != ''
-                GROUP BY vendor_name
-                ORDER BY SUM(contract_value) DESC
-                LIMIT $2
-            `, [org, limit]);
+            const { data: vendorRows, error } = await supabase
+                .from('money_flow_vendors')
+                .select('vendor_name, total_value, contracts')
+                .eq('org_name', org)
+                .order('rank', { ascending: true })
+                .limit(limit);
 
-            if (vendorRows.length === 0) {
+            if (error) throw new Error(error.message);
+
+            if (!vendorRows || vendorRows.length === 0) {
                 return NextResponse.json({
                     success: true,
                     org,
@@ -34,33 +28,26 @@ export async function GET(request) {
                 });
             }
 
-            const totalValue = vendorRows.reduce((sum, r) => sum + Number(r.value), 0);
+            const totalValue = vendorRows.reduce((sum, r) => sum + Number(r.total_value), 0);
             nodes.push({ id: 'org', name: org, type: 'department', value: totalValue });
 
             vendorRows.forEach((r, idx) => {
                 const vid = `v${idx}`;
-                const vendorLabel = r.vendor.length > 30 ? r.vendor.substring(0, 28) + '...' : r.vendor;
-                nodes.push({ id: vid, name: vendorLabel, type: 'vendor', value: Number(r.value), fullName: r.vendor, contracts: r.contracts });
-                links.push({ source: 'org', target: vid, value: Number(r.value) });
+                const vendorLabel = r.vendor_name.length > 30 ? r.vendor_name.substring(0, 28) + '...' : r.vendor_name;
+                nodes.push({ id: vid, name: vendorLabel, type: 'vendor', value: Number(r.total_value), fullName: r.vendor_name, contracts: r.contracts });
+                links.push({ source: 'org', target: vid, value: Number(r.total_value) });
             });
 
         } else {
-            const deptRows = await query(`
-                SELECT 
-                    org_name as dept,
-                    SUM(contract_value) as value,
-                    COUNT(*) as contracts
-                FROM aoc_clean
-                WHERE contract_value > 0
-                    AND org_name IS NOT NULL
-                    AND org_name != 'Unknown'
-                    AND org_name != ''
-                GROUP BY org_name
-                ORDER BY SUM(contract_value) DESC
-                LIMIT $1
-            `, [limit]);
+            const { data: deptRows, error } = await supabase
+                .from('org_stats')
+                .select('org_name, total_value, total_contracts')
+                .order('total_value', { ascending: false })
+                .limit(limit);
 
-            if (deptRows.length === 0) {
+            if (error) throw new Error(error.message);
+
+            if (!deptRows || deptRows.length === 0) {
                 return NextResponse.json({
                     success: true,
                     org: 'All Departments',
@@ -68,37 +55,38 @@ export async function GET(request) {
                 });
             }
 
-            const grandTotal = deptRows.reduce((sum, r) => sum + Number(r.value), 0);
+            // one query for every department's top-3 vendors (rank <= 3)
+            const deptNames = deptRows.map(d => d.org_name);
+            const { data: vendorRows, error: vErr } = await supabase
+                .from('money_flow_vendors')
+                .select('org_name, vendor_name, total_value, rank')
+                .in('org_name', deptNames)
+                .lte('rank', 3);
+
+            if (vErr) throw new Error(vErr.message);
+
+            const vendorsByOrg = {};
+            (vendorRows || []).forEach(v => {
+                (vendorsByOrg[v.org_name] = vendorsByOrg[v.org_name] || []).push(v);
+            });
+
+            const grandTotal = deptRows.reduce((sum, r) => sum + Number(r.total_value), 0);
             nodes.push({ id: 'total', name: 'Total Procurement Budget', type: 'total', value: grandTotal });
 
-            for (let dIdx = 0; dIdx < deptRows.length; dIdx++) {
-                const d = deptRows[dIdx];
+            deptRows.forEach((d, dIdx) => {
                 const did = `d${dIdx}`;
-                const deptLabel = d.dept.length > 25 ? d.dept.substring(0, 23) + '...' : d.dept;
-                nodes.push({ id: did, name: deptLabel, type: 'department', value: Number(d.value), fullName: d.dept, contracts: d.contracts });
-                links.push({ source: 'total', target: did, value: Number(d.value) });
+                const deptLabel = d.org_name.length > 25 ? d.org_name.substring(0, 23) + '...' : d.org_name;
+                nodes.push({ id: did, name: deptLabel, type: 'department', value: Number(d.total_value), fullName: d.org_name, contracts: Number(d.total_contracts) });
+                links.push({ source: 'total', target: did, value: Number(d.total_value) });
 
-                const vendorRows = await query(`
-                    SELECT 
-                        vendor_name as vendor,
-                        SUM(contract_value) as value
-                    FROM aoc_clean
-                    WHERE org_name = $1
-                        AND contract_value > 0
-                        AND vendor_name IS NOT NULL
-                        AND vendor_name != ''
-                    GROUP BY vendor_name
-                    ORDER BY SUM(contract_value) DESC
-                    LIMIT 3
-                `, [d.dept]);
-
-                vendorRows.forEach((v, vIdx) => {
+                const topVendors = (vendorsByOrg[d.org_name] || []).sort((a, b) => a.rank - b.rank);
+                topVendors.forEach((v, vIdx) => {
                     const vid = `${did}_v${vIdx}`;
-                    const vendorLabel = v.vendor.length > 22 ? v.vendor.substring(0, 20) + '...' : v.vendor;
-                    nodes.push({ id: vid, name: vendorLabel, type: 'vendor', value: Number(v.value), fullName: v.vendor });
-                    links.push({ source: did, target: vid, value: Number(v.value) });
+                    const vendorLabel = v.vendor_name.length > 22 ? v.vendor_name.substring(0, 20) + '...' : v.vendor_name;
+                    nodes.push({ id: vid, name: vendorLabel, type: 'vendor', value: Number(v.total_value), fullName: v.vendor_name });
+                    links.push({ source: did, target: vid, value: Number(v.total_value) });
                 });
-            }
+            });
         }
 
         return NextResponse.json({
@@ -109,16 +97,6 @@ export async function GET(request) {
 
     } catch (error) {
         console.error("Error in money-flow API:", error);
-
-        if (error.message?.includes('DATABASE_UNAVAILABLE') || error.code === 'ECONNREFUSED') {
-            return NextResponse.json({
-                success: false,
-                message: "Database is locked or optimizing. Showing fallback money flow data.",
-                isLocked: true,
-                data: { nodes: [], links: [] }
-            });
-        }
-
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

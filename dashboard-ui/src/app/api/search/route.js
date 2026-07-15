@@ -1,19 +1,28 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne } from '@/lib/turso';
+import { supabase } from '@/lib/supabase';
 
 /**
- * Clean search string for SQLite FTS5 MATCH
+ * Build a Postgres tsquery string with AND'd prefix terms
+ * (e.g. "road nhai" -> "road:* & nhai:*")
  */
-function cleanFtsQuery(q) {
+function buildTsQuery(q) {
   const cleanQ = q.replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
   const terms = cleanQ.split(/\s+/).filter(t => t.length > 0);
   if (terms.length === 0) return '';
-  return terms.map(t => `${t}*`).join(' AND ');
+  return terms.map(t => `${t}:*`).join(' & ');
 }
+
+const SECTOR_PATTERNS = {
+  roads: ['%highways%', '%nhai%', '%road%', '%pwd%', '%rwd%'],
+  defense: ['%military%', '%mes%', '%weapons%', '%defence%'],
+  energy: ['%coalfields%', '%lignite%', '%power%', '%bhel%'],
+  petroleum: ['%bpcl%', '%indianoil%', '%hpcl%', '%petroleum%'],
+  agriculture: ['%mandi%', '%agriculture%', '%coop%'],
+  aviation: ['%airports%', '%aai%'],
+};
 
 export async function GET(request) {
   try {
-    // Parse query params
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const minBids = searchParams.get('minBids') ? parseInt(searchParams.get('minBids')) : null;
@@ -27,115 +36,57 @@ export async function GET(request) {
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const offset = (page - 1) * limit;
 
-    let sql = '';
-    const params = [];
+    // The index holds high-value contracts (>= 5 Cr); the heavy raw dataset
+    // stays in R2 per the storage split.
+    let query = supabase
+      .from('tender_search_index')
+      .select(
+        'internal_id, tender_id, org_name, title, vendor_name, contract_value, bids_received, published_date, closing_date, contract_date, award_delay_days, bid_window_days',
+        { count: 'exact' }
+      );
 
     if (q) {
-      const cleanedQuery = cleanFtsQuery(q);
-      sql = `
-        SELECT 
-          tender_id as "contractId",
-          tender_id as "tenderId",
-          org_name as department,
-          title as title,
-          contract_value as value,
-          bids_received as bids,
-          vendor_name as vendor,
-          closing_date as "publishedDate",
-          closing_date as "closingDate",
-          closing_date as "contractDate",
-          0 as "awardDelay",
-          0 as "bidWindow"
-        FROM aoc_fts
-        WHERE aoc_fts MATCH ? AND org_name != 'Unknown'
-      `;
-      params.push(cleanedQuery);
-    } else {
-      sql = `
-        SELECT 
-          tender_id as "contractId",
-          tender_id as "tenderId",
-          org_name as department,
-          title as title,
-          contract_value as value,
-          bids_received as bids,
-          vendor_name as vendor,
-          closing_date as "publishedDate",
-          closing_date as "closingDate",
-          closing_date as "contractDate",
-          0 as "awardDelay",
-          0 as "bidWindow"
-        FROM aoc_fts
-        WHERE org_name != 'Unknown'
-      `;
+      const tsq = buildTsQuery(q);
+      if (tsq) query = query.textSearch('fts', tsq);
+    }
+    if (minBids !== null) query = query.gte('bids_received', minBids);
+    if (maxBids !== null) query = query.lte('bids_received', maxBids);
+    if (minVal !== null) query = query.gte('contract_value', minVal * 10000000);
+    if (maxVal !== null) query = query.lte('contract_value', maxVal * 10000000);
+    if (state) query = query.eq('org_name', state);
+    if (entity) query = query.eq('org_name', entity);
+    if (sector && SECTOR_PATTERNS[sector]) {
+      query = query.or(SECTOR_PATTERNS[sector].map(p => `org_name.ilike.${p}`).join(','));
     }
 
-    if (minBids !== null) {
-      sql += ` AND bids_received >= ?`;
-      params.push(minBids);
-    }
-    if (maxBids !== null) {
-      sql += ` AND bids_received <= ?`;
-      params.push(maxBids);
-    }
-    if (minVal !== null) {
-      sql += ` AND contract_value >= ?`;
-      params.push(minVal * 10000000); 
-    }
-    if (maxVal !== null) {
-      sql += ` AND contract_value <= ?`;
-      params.push(maxVal * 10000000);
-    }
+    const { data, error, count } = await query
+      .order('closing_date', { ascending: false, nullsFirst: false })
+      .range(offset, offset + limit - 1);
 
-    if (state) {
-      sql += ` AND org_name = ?`;
-      params.push(state);
-    }
-    if (entity) {
-      sql += ` AND org_name = ?`;
-      params.push(entity);
-    }
-    if (sector) {
-      if (sector === 'roads') {
-        sql += ` AND (org_name LIKE '%highways%' OR org_name LIKE '%nhai%' OR org_name LIKE '%road%' OR org_name LIKE '%pwd%' OR org_name LIKE '%rwd%')`;
-      } else if (sector === 'defense') {
-        sql += ` AND (org_name LIKE '%military%' OR org_name LIKE '%mes%' OR org_name LIKE '%weapons%' OR org_name LIKE '%defence%')`;
-      } else if (sector === 'energy') {
-        sql += ` AND (org_name LIKE '%coalfields%' OR org_name LIKE '%lignite%' OR org_name LIKE '%power%' OR org_name LIKE '%bhel%')`;
-      } else if (sector === 'petroleum') {
-        sql += ` AND (org_name LIKE '%bpcl%' OR org_name LIKE '%indianoil%' OR org_name LIKE '%hpcl%' OR org_name LIKE '%petroleum%')`;
-      } else if (sector === 'agriculture') {
-        sql += ` AND (org_name LIKE '%mandi%' OR org_name LIKE '%agriculture%' OR org_name LIKE '%coop%')`;
-      } else if (sector === 'aviation') {
-        sql += ` AND (org_name LIKE '%airports%' OR org_name LIKE '%aai%')`;
-      }
-    }
+    if (error) throw new Error(error.message);
 
-    sql += ` ORDER BY closing_date DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const results = await query(sql, params);
-
-    let totalCount = 1000;
-    if (q && (minBids === null && maxBids === null && minVal === null && maxVal === null && !state && !sector && !entity)) {
-      const countRes = await queryOne("SELECT COUNT(*) as count FROM aoc_fts WHERE aoc_fts MATCH ?", [cleanFtsQuery(q)]);
-      totalCount = countRes?.count || 1000;
-    } else if (q || minBids || maxBids || minVal || maxVal || state || sector || entity) {
-      const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as count FROM').split('ORDER BY')[0];
-      const countParams = params.slice(0, params.length - 2);
-      const countRes = await queryOne(countSql, countParams);
-      totalCount = countRes?.count || 1000;
-    } else {
-      const countRes = await queryOne("SELECT SUM(total_contracts) as count FROM org_summary");
-      totalCount = countRes?.count || 4500000;
-    }
+    const results = (data || []).map(r => ({
+      contractId: r.internal_id,
+      tenderId: r.tender_id,
+      department: r.org_name,
+      title: r.title,
+      value: r.contract_value ? Number(r.contract_value) : 0,
+      bids: r.bids_received,
+      vendor: r.vendor_name,
+      publishedDate: r.published_date,
+      closingDate: r.closing_date,
+      contractDate: r.contract_date,
+      awardDelay: r.award_delay_days,
+      bidWindow: r.bid_window_days,
+    }));
 
     return NextResponse.json({
       success: true,
       data: results,
-      total: totalCount,
+      total: count ?? results.length,
       page,
-      limit
+      limit,
+      indexFloorCrores: 5
     });
   } catch (error) {
     console.error('Database query error in search:', error);

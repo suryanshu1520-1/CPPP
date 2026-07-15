@@ -31,17 +31,41 @@ import {
   XAxis,
   YAxis,
   Tooltip as RechartsTooltip,
-  BarChart,
-  Bar,
   CartesianGrid,
-  ScatterChart,
-  Scatter,
-  ZAxis,
-  Cell,
-  ReferenceLine
 } from 'recharts';
 import FiscalHeatmap from '@/components/FiscalHeatmap';
 import MoneyFlowSankey from '@/components/MoneyFlowSankey';
+import BidsDistributionHistogram from '@/components/BidsDistributionHistogram';
+import BidWindowScatterplot from '@/components/BidWindowScatterplot';
+
+// Adapts the precomputed {bids, count} buckets into BidsDistributionData
+function toBidsDistributionData(rawBuckets) {
+  if (!rawBuckets || rawBuckets.length === 0) return [];
+  const total = rawBuckets.reduce((sum, b) => sum + (Number(b.count) || 0), 0);
+  return rawBuckets.map((b) => ({
+    bids_category: b.bids,
+    count: Number(b.count) || 0,
+    percentage: total > 0 ? (Number(b.count) / total) * 100 : 0,
+    is_single_bid: b.bids === '1 Bid',
+  }));
+}
+
+// Adapts the precomputed scatterplot coordinates into ScatterplotPoint
+function toScatterplotPoints(rawPoints) {
+  if (!rawPoints || rawPoints.length === 0) return [];
+  return rawPoints.map((p) => ({
+    contract_id: p.label,
+    tender_id: p.label,
+    tender_title: p.title,
+    org_name: p.department,
+    vendor_name: p.vendor,
+    contract_value: p.value,
+    award_delay_days: p.x,
+    bids_received: p.y,
+    is_anomaly: p.isAnomaly === 1 || p.isAnomaly === true,
+    anomaly_type: p.y <= 2 ? 'single_bid' : 'extreme_delay',
+  }));
+}
 
 export default function DashboardShell() {
   const { language, toggleLanguage } = useLanguage();
@@ -387,9 +411,9 @@ export default function DashboardShell() {
   };
 
   // Handle dynamic histogram bar click filtering
-  const handleHistogramBarClick = (data) => {
-    if (data && data.bids) {
-      const bidVal = data.bids.replace(/[^0-9]/g, '');
+  const handleHistogramBarClick = (bucket) => {
+    if (bucket && bucket.bids_category) {
+      const bidVal = bucket.bids_category.replace(/[^0-9]/g, '');
       setSearchMinBids(bidVal);
       setSearchQ('');
       setSearchMinVal('');
@@ -399,21 +423,20 @@ export default function DashboardShell() {
   };
 
   // Handle scatterplot node selection
-  const handleScatterNodeClick = (node) => {
-    if (node && node.payload) {
-      const payload = node.payload;
+  const handleScatterNodeClick = (point) => {
+    if (point) {
       setSelectedTender({
-        tenderId: payload.label,
-        title: payload.title,
-        department: payload.department,
-        vendor: payload.vendor || 'Unknown Contractor',
-        value: payload.value || 0,
-        bids: payload.bids || 1,
+        tenderId: point.tender_id,
+        title: point.tender_title || point.tender_id,
+        department: point.org_name,
+        vendor: point.vendor_name || 'Unknown Contractor',
+        value: point.contract_value || 0,
+        bids: point.bids_received || 1,
         publishedDate: '---',
         closingDate: '---',
         contractDate: 'Interactive Coordinates',
-        bidWindow: payload.x,
-        awardDelay: payload.y
+        bidWindow: null,
+        awardDelay: point.award_delay_days
       });
     }
   };
@@ -1287,33 +1310,10 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                     <div className={styles.chartTitle}>
                       <span>{current.bidsHistTitle}</span>
                     </div>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart
-                        data={activeScorecard && scorecardBids.length > 0 ? scorecardBids : bidsDistribution}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                        onClick={(data) => { if (data && data.activePayload) handleHistogramBarClick(data.activePayload[0].payload); }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-                        <XAxis dataKey="bids" stroke="var(--text-secondary)" style={{ fontSize: '11px' }} />
-                        <YAxis stroke="var(--text-secondary)" style={{ fontSize: '11px' }} />
-                        <RechartsTooltip
-                          contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)', borderRadius: '8px' }}
-                          formatter={(value) => [value.toLocaleString(), 'Contracts']}
-                        />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                          {(activeScorecard && scorecardBids.length > 0 ? scorecardBids : bidsDistribution).map((entry, index) => {
-                            const isSingleBid = entry.bids === '1 Bid';
-                            return (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={isSingleBid ? 'var(--color-risk-catastrophic)' : 'var(--accent-blue)'}
-                                style={{ cursor: 'pointer' }}
-                              />
-                            );
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <BidsDistributionHistogram
+                      data={toBidsDistributionData(activeScorecard && scorecardBids.length > 0 ? scorecardBids : bidsDistribution)}
+                      onBarClick={handleHistogramBarClick}
+                    />
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '12px', textAlign: 'center' }}>
                       * Click on the "1 Bid" bar to isolate all single-bid contracts in the Civic Auditor tab.
                     </p>
@@ -1333,77 +1333,10 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         <span style={{ color: 'var(--accent-blue)' }}>● Healthy (3+ bids)</span>
                       </span>
                     </div>
-                    <ResponsiveContainer width="100%" height={290}>
-                      <ScatterChart margin={{ top: 10, right: 20, left: -10, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                        <XAxis
-                          type="number"
-                          dataKey="x"
-                          name="Award Delay (Days)"
-                          label={{ value: 'Award Delay (Days)', position: 'insideBottom', offset: -12, fontSize: 11, fill: 'var(--text-secondary)' }}
-                          stroke="var(--text-secondary)"
-                          style={{ fontSize: '11px' }}
-                          domain={[0, 365]}
-                          tickCount={7}
-                        />
-                        <YAxis
-                          type="number"
-                          dataKey="y"
-                          name="Bids Received"
-                          label={{ value: 'Bids Received', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: 'var(--text-secondary)' }}
-                          stroke="var(--text-secondary)"
-                          style={{ fontSize: '11px' }}
-                          domain={[0, 13]}
-                          ticks={[1, 2, 3, 4, 5, 6, 8, 10, 12]}
-                        />
-                        <RechartsTooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const d = payload[0].payload;
-                              const riskColor = d.isAnomaly ? 'var(--color-risk-catastrophic)' : 'var(--accent-blue)';
-                              return (
-                                <div style={{ background: 'var(--bg-primary)', border: `1px solid ${riskColor}`, padding: '12px 14px', borderRadius: '8px', fontSize: '0.82rem', maxWidth: '280px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-                                  <p style={{ fontWeight: '700', color: riskColor, marginBottom: '6px', fontSize: '0.78rem' }}>
-                                    {d.isAnomaly ? '🔴 ANOMALY DETECTED' : '🔵 HEALTHY CONTRACT'}
-                                  </p>
-                                  <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>{d.label}</p>
-                                  <p style={{ color: 'var(--text-secondary)', marginBottom: '8px', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.title}>{d.title}</p>
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Value:</span>
-                                    <strong style={{ color: 'var(--text-primary)' }}>{formatValue(d.value)}</strong>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Award Delay:</span>
-                                    <strong style={{ color: d.x > 90 ? 'var(--color-risk-catastrophic)' : 'var(--text-primary)' }}>{d.x} days</strong>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Bids Received:</span>
-                                    <strong style={{ color: d.y <= 2 ? 'var(--color-risk-catastrophic)' : 'var(--color-risk-baseline)' }}>{d.y} bid{d.y !== 1 ? 's' : ''}</strong>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Dept:</span>
-                                    <span style={{ color: 'var(--text-primary)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.department}>{d.department}</span>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        {/* Anomaly threshold lines */}
-                        <ReferenceLine x={30} stroke="var(--color-risk-catastrophic)" strokeDasharray="4 3" strokeOpacity={0.6} label={{ value: '30d', position: 'top', fontSize: 10, fill: 'var(--color-risk-catastrophic)' }} />
-                        <ReferenceLine y={2.5} stroke="var(--color-risk-catastrophic)" strokeDasharray="4 3" strokeOpacity={0.6} label={{ value: '2 bids', position: 'right', fontSize: 10, fill: 'var(--color-risk-catastrophic)' }} />
-                        <Scatter
-                          name="Contracts"
-                          data={scatterplotData}
-                          onClick={handleScatterNodeClick}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {scatterplotData.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={entry.isAnomaly ? 'var(--color-risk-catastrophic)' : 'var(--accent-blue)'}
-                              opacity={entry.isAnomaly ? 0.85 : 0.45}
-                              r={entry.isAnomaly ? 7 : 5}
-                            />
-                          ))}
-                        </Scatter>
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                    <BidWindowScatterplot
+                      data={toScatterplotPoints(scatterplotData)}
+                      onPointClick={handleScatterNodeClick}
+                    />
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
                       {current.explainAnomaly}
                     </p>
@@ -2082,7 +2015,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>{current.bidWindow}</span>
-                <span className={`${styles.metaValue} numeric`}>{selectedTender.bidWindow} days</span>
+                <span className={`${styles.metaValue} numeric`}>{selectedTender.bidWindow != null ? `${selectedTender.bidWindow} days` : 'N/A'}</span>
               </div>
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>{current.awardDelay}</span>
