@@ -1184,7 +1184,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
 
                 {/* Dynamic Stakeholder Narrative Panels */}
                 {stakeholderView === 'citizen' && (
-                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(255, 255, 255, 0.95) 100%)', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'var(--stakeholder-citizen-bg)', border: 'var(--stakeholder-citizen-border)' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Info size={20} color="var(--accent-blue)" />
                       Citizen Auditing Hub: Public Spending Transparency
@@ -1201,7 +1201,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                             onClick={() => fetchScorecardData(state)}
                             style={{
                               padding: '6px 12px',
-                              background: '#FFFFFF',
+                              background: 'var(--bg-card)',
                               border: '1px solid var(--border-subtle)',
                               borderRadius: '20px',
                               fontSize: '0.8rem',
@@ -1211,8 +1211,8 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                               boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                               transition: 'all 0.2s'
                             }}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-blue)'; e.currentTarget.style.background = 'rgba(59, 130, 246, 0.02)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = '#FFFFFF'; }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-blue)'; e.currentTarget.style.background = 'var(--accent-blue-glow)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
                           >
                             Audit {state}
                           </button>
@@ -1223,7 +1223,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                 )}
 
                 {stakeholderView === 'investigator' && (
-                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'var(--stakeholder-investigator-bg)', border: 'var(--stakeholder-investigator-border)' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <FileText size={20} color="var(--color-risk-high)" />
                       Journalist Command Center: Forensic Procurement Ring Investigations
@@ -1241,7 +1241,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                       <button
                         onClick={() => setActiveTab('redflag')}
                         style={{ padding: '8px 16px', background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         Subscribe to Watchdog Webhooks
@@ -1251,7 +1251,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                 )}
 
                 {stakeholderView === 'bidder' && (
-                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'var(--stakeholder-bidder-bg)', border: 'var(--stakeholder-bidder-border)' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Building2 size={20} color="var(--color-risk-baseline)" />
                       SME Contractor Portal: Anti-Trust and Market Concentration Advisor
@@ -1282,7 +1282,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                 )}
 
                 {stakeholderView === 'auditor' && (
-                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%)', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                  <div className="glassPanel animate-fade-in" style={{ padding: '24px', marginBottom: '24px', background: 'var(--stakeholder-auditor-bg)', border: 'var(--stakeholder-auditor-border)' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Fingerprint size={20} color="var(--color-risk-medium)" />
                       Auditor Compliance Console: Data Invariance & Ledger Integrity
@@ -1291,11 +1291,11 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                       Internal public compliance tools. Verify budget rushes, audit database provenance hashes against government CPPP records, and ensure absolute ledger invariance.
                     </p>
                     <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                      <div style={{ background: '#FFFFFF', padding: '10px 16px', border: '1px solid var(--border-subtle)', borderRadius: '8px', flex: 1 }}>
+                      <div style={{ background: 'var(--bg-card)', padding: '10px 16px', border: '1px solid var(--border-subtle)', borderRadius: '8px', flex: 1 }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Live Invariance Certificate</span>
                         <span className="numeric" style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--accent-blue)' }}>SHA-256: {provenance ? provenance.hash : 'Calculating...'}</span>
                       </div>
-                      <div style={{ background: '#FFFFFF', padding: '10px 16px', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
+                      <div style={{ background: 'var(--bg-card)', padding: '10px 16px', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>March Rush Compression Ratio</span>
                         <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-risk-high)' }}>1.84x Standard Deviation</span>
                       </div>
@@ -1577,7 +1577,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         value={subEmail}
                         onChange={(e) => setSubEmail(e.target.value)}
                         placeholder="auditor@civic.org"
-                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
+                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
                       />
                     </div>
                     <div className={styles.inputGroup}>
@@ -1587,7 +1587,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         value={subWebhook}
                         onChange={(e) => setSubWebhook(e.target.value)}
                         placeholder="https://api.site.com/webhook"
-                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
+                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
                       />
                     </div>
                     <div className={styles.inputGroup}>
@@ -1595,7 +1595,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                       <select
                         value={subType}
                         onChange={(e) => setSubType(e.target.value)}
-                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
+                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
                       >
                         <option value="all">All Anomalies</option>
                         <option value="single_bid">Single Bid Win</option>
@@ -1610,7 +1610,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         value={subOrg}
                         onChange={(e) => setSubOrg(e.target.value)}
                         placeholder="e.g. NHAI"
-                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
+                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
                       />
                     </div>
                     <div className={styles.inputGroup}>
@@ -1620,7 +1620,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         value={subMinVal}
                         onChange={(e) => setSubMinVal(e.target.value)}
                         placeholder="e.g. 10"
-                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
+                        style={{ padding: '8px 12px', fontSize: '0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)' }}
                       />
                     </div>
                     <button

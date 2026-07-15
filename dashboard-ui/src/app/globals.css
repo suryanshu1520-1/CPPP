@@ -46,6 +46,16 @@
 
   --theme-transition: background-color 0.25s ease, color 0.25s ease,
                       border-color 0.25s ease, box-shadow 0.25s ease;
+
+  /* Stakeholder card backgrounds & borders */
+  --stakeholder-citizen-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(255, 255, 255, 0.95) 100%);
+  --stakeholder-citizen-border: 1px solid rgba(37, 99, 235, 0.15);
+  --stakeholder-investigator-bg: linear-gradient(135deg, rgba(239, 68, 68, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
+  --stakeholder-investigator-border: 1px solid rgba(239, 68, 68, 0.15);
+  --stakeholder-bidder-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
+  --stakeholder-bidder-border: 1px solid rgba(16, 185, 129, 0.15);
+  --stakeholder-auditor-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
+  --stakeholder-auditor-border: 1px solid rgba(245, 158, 11, 0.15);
 }
 
 /* ============================================================
@@ -83,6 +93,16 @@
   --color-risk-medium:      #e6db74;
   --color-risk-high:        #fd971f;
   --color-risk-catastrophic:#f92672;
+
+  /* Stakeholder card backgrounds & borders (Monokai overrides) */
+  --stakeholder-citizen-bg: linear-gradient(135deg, rgba(102, 217, 232, 0.08) 0%, #2d2e27 100%);
+  --stakeholder-citizen-border: 1px solid rgba(102, 217, 232, 0.25);
+  --stakeholder-investigator-bg: linear-gradient(135deg, rgba(249, 38, 114, 0.08) 0%, #2d2e27 100%);
+  --stakeholder-investigator-border: 1px solid rgba(249, 38, 114, 0.25);
+  --stakeholder-bidder-bg: linear-gradient(135deg, rgba(166, 226, 46, 0.08) 0%, #2d2e27 100%);
+  --stakeholder-bidder-border: 1px solid rgba(166, 226, 46, 0.25);
+  --stakeholder-auditor-bg: linear-gradient(135deg, rgba(253, 151, 31, 0.08) 0%, #2d2e27 100%);
+  --stakeholder-auditor-border: 1px solid rgba(253, 151, 31, 0.25);
 }
 
 /* Monokai — body */
