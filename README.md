@@ -1,4 +1,4 @@
-# Tender Project — Public Procurement Watchdog
+# Tender-Trace — Public Procurement Watchdog
 
 A civic-transparency utility built on India's Central Public Procurement Portal (CPPP) "Award of Contract" (AoC) data. It surfaces market concentration, integrity-risk scoring, single-bid/rush-job/award-delay red flags, vendor monopoly tracking, and RTI (Right to Information Act) request generation for journalists, SME/local contractors, compliance officers, and citizens.
 

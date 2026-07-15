@@ -1,4 +1,4 @@
-# Tender Watchdog Dashboard
+# Tender-Trace
 
 A civic-transparency dashboard built on India's Central Public Procurement Portal (CPPP) "Award of Contract" data. It turns raw procurement records into market-concentration and integrity-risk scoring, anomaly/red-flag detection, vendor monopoly tracking, and RTI (Right to Information Act) request generation — aimed at journalists, SME/local contractors, compliance officers, and citizens.
 

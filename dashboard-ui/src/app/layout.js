@@ -2,7 +2,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import "./globals.css";
 
 export const metadata = {
-  title: "CPPP Procurement Dashboard",
+  title: "Tender-Trace",
   description: "Advanced analytics and transparency portal for Indian public procurement data.",
 };
 

@@ -558,7 +558,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
   // Translations dictionary
   const t = {
     en: {
-      title: "CPPP Watchdog Terminal",
+      title: "Tender-Trace Terminal",
       welcome: "Public Procurement Watchdog Utility",
       subtitle: "Dynamic econometric telemetry monitoring public spending",
       langSwitch: "हिन्दी में देखें",
@@ -620,7 +620,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
       dossierLoadingText: "Assembling print-ready Section 6(1) RTI template..."
     },
     hi: {
-      title: "सी.पी.पी.पी वॉचडॉग टर्मिनल",
+      title: "टेंडर-ट्रेस टर्मिनल",
       welcome: "सार्वजनिक खरीद वॉचडॉग यूटिलिटी",
       subtitle: "सार्वजनिक खर्च की गतिशील अर्थमितीय निगरानी",
       langSwitch: "View in English",
@@ -729,7 +729,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
           <Activity size={28} color="var(--accent-blue)" />
-          CPPP<span>Watchdog</span>
+          Tender<span>Trace</span>
         </div>
 
         <nav className={styles.nav}>
