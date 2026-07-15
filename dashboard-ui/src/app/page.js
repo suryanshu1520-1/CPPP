@@ -112,7 +112,7 @@ export default function DashboardShell() {
   const [searchMinBids, setSearchMinBids] = useState('');
   const [searchMinVal, setSearchMinVal] = useState('');
   const [searchPage, setSearchPage] = useState(1);
-  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchLimit, setSearchLimit] = useState(20);
   const [searchState, setSearchState] = useState('');
   const [searchSector, setSearchSector] = useState('');
@@ -269,7 +269,7 @@ export default function DashboardShell() {
       const res = await fetch(`/api/search?${params.toString()}`);
       const result = await res.json();
       setSearchResults(result.data || []);
-      setSearchTotal(result.total || 0);
+      setSearchHasMore(!!result.hasMore);
     } catch (e) {
       console.error("Search query failed:", e);
     } finally {
@@ -1799,7 +1799,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                   {current.search}
                 </div>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                  Build custom procurement audits utilizing full-text text keyword indices and multiple numeric threshold parameters.
+                  Build custom procurement audits utilizing full-text keyword indices and multiple numeric threshold parameters. Search covers contracts valued <strong>₹1 Crore and above</strong>; department, vendor, and time-series analytics across all tabs reflect the full dataset.
                 </p>
 
                 {/* Filter Canvas form */}
@@ -1896,7 +1896,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                     <div className={`glassPanel ${styles.tableCard}`}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                          {current.showingResults} <strong className="numeric">{((searchPage - 1) * searchLimit) + 1}</strong> - <strong className="numeric">{Math.min(searchPage * searchLimit, searchTotal)}</strong> {current.of} <strong className="numeric">{searchTotal.toLocaleString()}</strong>
+                          {current.showingResults} <strong className="numeric">{searchResults.length === 0 ? 0 : ((searchPage - 1) * searchLimit) + 1}</strong> - <strong className="numeric">{((searchPage - 1) * searchLimit) + searchResults.length}</strong>{searchHasMore ? '+' : ''}
                         </span>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {searchMinBids && (
@@ -1933,7 +1933,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                               </tr>
                             ) : (
                               searchResults.map((item) => (
-                                <tr key={item.internalId || item.tenderId} onClick={() => handleRowClick(item)}>
+                                <tr key={item.contractId || item.tenderId} onClick={() => handleRowClick(item)}>
                                   <td className="numeric" style={{ fontWeight: '600', color: 'var(--accent-blue)' }}>{item.tenderId}</td>
                                   <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.department}>
                                     {item.department}
@@ -1951,7 +1951,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                         </table>
                       </div>
 
-                      {searchTotal > searchLimit && (
+                      {(searchPage > 1 || searchHasMore) && (
                         <div className={styles.pagination}>
                           <button
                             className={styles.btnPagination}
@@ -1965,7 +1965,7 @@ IRI Composite Integrity Risk Factor: ${scorecardIri ? scorecardIri.iri : '74.5 (
                           </span>
                           <button
                             className={styles.btnPagination}
-                            disabled={searchPage * searchLimit >= searchTotal}
+                            disabled={!searchHasMore}
                             onClick={() => setSearchPage(prev => prev + 1)}
                           >
                             {current.next}

@@ -59,36 +59,47 @@ export async function GET(request) {
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const offset = (page - 1) * limit;
 
-    // The index holds high-value contracts (>= 5 Cr); the heavy raw dataset
+    // The index holds high-value contracts (>= 1 Cr); the heavy raw dataset
     // stays in R2 per the storage split.
-    let query = supabase
-      .from('tender_search_index')
-      .select(
-        'internal_id, tender_id, org_name, title, vendor_name, contract_value, bids_received, published_date, closing_date, contract_date, award_delay_days, bid_window_days',
-        { count: 'exact' }
-      );
+    const tsq = q ? buildTsQuery(q) : '';
 
-    if (q) {
-      const tsq = buildTsQuery(q);
+    // Apply the same filters to any query builder (data + count share these).
+    const applyFilters = (query) => {
       if (tsq) query = query.textSearch('fts', tsq);
-    }
-    if (minBids !== null) query = query.gte('bids_received', minBids);
-    if (maxBids !== null) query = query.lte('bids_received', maxBids);
-    if (minVal !== null) query = query.gte('contract_value', minVal * 10000000);
-    if (maxVal !== null) query = query.lte('contract_value', maxVal * 10000000);
-    if (state) query = query.eq('org_name', state);
-    if (entity) query = query.eq('org_name', entity);
-    if (sector && SECTOR_PATTERNS[sector]) {
-      query = query.or(SECTOR_PATTERNS[sector].map(p => `org_name.ilike.${p}`).join(','));
-    }
+      if (minBids !== null) query = query.gte('bids_received', minBids);
+      if (maxBids !== null) query = query.lte('bids_received', maxBids);
+      if (minVal !== null) query = query.gte('contract_value', minVal * 10000000);
+      if (maxVal !== null) query = query.lte('contract_value', maxVal * 10000000);
+      if (state) query = query.eq('org_name', state);
+      if (entity) query = query.eq('org_name', entity);
+      if (sector && SECTOR_PATTERNS[sector]) {
+        query = query.or(SECTOR_PATTERNS[sector].map(p => `org_name.ilike.${p}`).join(','));
+      }
+      return query;
+    };
 
-    const { data, error, count } = await query
-      .order('closing_date', { ascending: false, nullsFirst: false })
-      .range(offset, offset + limit - 1);
+    // Data: order by contract_value (idx_tsi_value) rather than closing_date so
+    // value/bid filters without a keyword use the index instead of a full sort
+    // (which hit the free-tier statement timeout). Highest-value-first is also
+    // the most useful default ordering for a procurement watchdog.
+    const dataCols =
+      'internal_id, tender_id, org_name, title, vendor_name, contract_value, bids_received, published_date, closing_date, contract_date, award_delay_days, bid_window_days';
+    // Fetch one extra row to know whether a next page exists, without an
+    // expensive COUNT: exact counts over the 344k-row index time out on the
+    // free tier and planner estimates are unreliable for value ranges. The
+    // data query itself is fast for every filter (idx_tsi_value / GIN).
+    const { data, error } = await applyFilters(
+      supabase.from('tender_search_index').select(dataCols)
+    )
+      .order('contract_value', { ascending: false })
+      .range(offset, offset + limit); // limit+1 rows
 
     if (error) throw new Error(error.message);
 
-    const results = (data || []).map(r => ({
+    const hasMore = (data || []).length > limit;
+    const pageRows = (data || []).slice(0, limit);
+
+    const results = pageRows.map(r => ({
       contractId: r.internal_id,
       tenderId: r.tender_id,
       department: r.org_name,
@@ -106,10 +117,10 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       data: results,
-      total: count ?? results.length,
+      hasMore,
       page,
       limit,
-      indexFloorCrores: 5
+      indexFloorCrores: 1
     });
   } catch (error) {
     console.error('Database query error in search:', error);
