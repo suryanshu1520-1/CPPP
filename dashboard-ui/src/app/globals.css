@@ -43,6 +43,114 @@
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --font-hindi: 'Noto Sans Devanagari', sans-serif;
+
+  --theme-transition: background-color 0.25s ease, color 0.25s ease,
+                      border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* ============================================================
+   MONOKAI DARK THEME
+   Toggle: document.documentElement.setAttribute('data-theme','monokai')
+   Palette: Monokai Pro by Wimer Hazenberg — authentic colour values
+   ============================================================ */
+[data-theme="monokai"] {
+  /* Backgrounds */
+  --bg-primary:    #272822;   /* Classic Monokai base */
+  --bg-secondary:  #1e1f1b;   /* Deeper trough */
+  --bg-card:       #2d2e27;   /* Lifted card surface */
+  --bg-elevated:   #3e3d32;   /* Dropdown / tooltip / modal */
+
+  /* Typography */
+  --text-primary:   #f8f8f2;  /* Monokai foreground warm white */
+  --text-secondary: #cfcfc2;  /* Muted label */
+  --text-muted:     #75715e;  /* Comment tone */
+
+  /* Borders */
+  --border-subtle: #3e3d32;
+  --border-hover:  #75715e;
+
+  /* Monokai accent palette */
+  --accent-blue:      #66d9e8;              /* Cyan */
+  --accent-blue-glow: rgba(102,217,232,.13);
+  --accent-green:     #a6e22e;              /* Lime */
+  --accent-red:       #f92672;              /* Hot pink */
+  --accent-amber:     #fd971f;              /* Orange */
+  --accent-purple:    #ae81ff;              /* Violet */
+  --accent-yellow:    #e6db74;              /* Yellow */
+
+  /* Risk spectrum — Monokai-mapped */
+  --color-risk-baseline:    #a6e22e;
+  --color-risk-medium:      #e6db74;
+  --color-risk-high:        #fd971f;
+  --color-risk-catastrophic:#f92672;
+}
+
+/* Monokai — body */
+[data-theme="monokai"] body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Monokai — glass panels */
+[data-theme="monokai"] .glassPanel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 24px rgba(0,0,0,.45), 0 1px 0 rgba(102,217,232,.04);
+}
+[data-theme="monokai"] .glassPanel:hover {
+  border-color: #75715e;
+  box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(102,217,232,.10);
+}
+
+/* Monokai — scrollbars */
+[data-theme="monokai"] ::-webkit-scrollbar-track { background: #1e1f1b; }
+[data-theme="monokai"] ::-webkit-scrollbar-thumb { background: #3e3d32; border-radius: 4px; }
+[data-theme="monokai"] ::-webkit-scrollbar-thumb:hover { background: #75715e; }
+
+/* Monokai — text selection */
+[data-theme="monokai"] ::selection {
+  background: rgba(102,217,232,.25);
+  color: #f8f8f2;
+}
+
+/* Monokai — table row hover */
+[data-theme="monokai"] tr:hover {
+  background: rgba(62,61,50,.65) !important;
+}
+
+/* Monokai — form inputs */
+[data-theme="monokai"] input,
+[data-theme="monokai"] select,
+[data-theme="monokai"] textarea {
+  background: #3e3d32 !important;
+  color: #f8f8f2 !important;
+  border-color: #3e3d32 !important;
+}
+[data-theme="monokai"] input::placeholder,
+[data-theme="monokai"] textarea::placeholder { color: #75715e !important; }
+[data-theme="monokai"] input:focus,
+[data-theme="monokai"] select:focus,
+[data-theme="monokai"] textarea:focus {
+  border-color: #66d9e8 !important;
+  box-shadow: 0 0 0 3px rgba(102,217,232,.18) !important;
+  outline: none;
+}
+
+/* Monokai — code / mono */
+[data-theme="monokai"] code,
+[data-theme="monokai"] pre { color: #e6db74; }
+
+/* Monokai — theme toggle glow animation */
+@keyframes monokaiPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(102,217,232,.45); }
+  70%  { box-shadow: 0 0 0 10px rgba(102,217,232,0); }
+  100% { box-shadow: 0 0 0 0 rgba(102,217,232,0); }
+}
+[data-theme="monokai"] .themeToggle {
+  background: #3e3d32;
+  border-color: #66d9e8;
+  color: #66d9e8;
+  animation: monokaiPulse 2.5s ease-out 1;
 }
 
 /* ============================================================
@@ -55,6 +163,12 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: var(--theme-transition);
+}
+
+/* Exclude performance-sensitive elements from theme transitions */
+svg, canvas, img, video, * > svg {
+  transition: none !important;
 }
 
 body {
@@ -123,18 +237,46 @@ h6 {
 
 /* ============================================================
    PANELS — Minimal glassmorphism
-   No heavy shadows, rely on 1px borders and negative space
    ============================================================ */
 
-.panel {
+.glassPanel {
   background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  transition: border-color 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03);
+  transition: all 0.3s ease;
 }
 
-.panel:hover {
+.glassPanel:hover {
   border-color: var(--border-hover);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.04);
+}
+
+/* ============================================================
+   THEME TOGGLE BUTTON
+   ============================================================ */
+
+.themeToggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 7px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.themeToggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 /* ============================================================
