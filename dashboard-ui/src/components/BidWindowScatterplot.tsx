@@ -237,8 +237,11 @@ export default function BidWindowScatterplot({
 
                     <Tooltip content={<CustomTooltip />} cursor={false} />
 
-                    {/* Scatter points */}
+                    {/* Scatter points — data MUST be on <Scatter> for Recharts to
+                        position points; <Cell> children only style them. */}
                     <Scatter
+                        data={data}
+                        isAnimationActive={false}
                         onClick={(node: any) => {
                             if (node && node.payload) onPointClick?.(node.payload as ScatterplotPoint);
                         }}
