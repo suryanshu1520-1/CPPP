@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { fetchR2Json } from '@/lib/r2';
 
 export async function GET(request) {
+  // Hoisted so the outer catch can reference it (fixes ReferenceError: org is not defined)
+  let org = '';
   try {
     const { searchParams } = new URL(request.url);
-    const org = searchParams.get('org') || '';
+    org = searchParams.get('org') || '';
 
     if (!org) {
       const globalScatter = await fetchR2Json('global_scatterplot.json');
