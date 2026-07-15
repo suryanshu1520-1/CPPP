@@ -25,6 +25,29 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
+
+    // Check if Cloudflare Worker proxy is available
+    if (process.env.DB_SERVICE_WORKER_URL) {
+        try {
+            const workerUrl = new URL('/api/search', process.env.DB_SERVICE_WORKER_URL);
+            workerUrl.search = searchParams.toString();
+            
+            const headers = {};
+            if (process.env.DB_SERVICE_WORKER_SECRET) {
+                headers['Authorization'] = `Bearer ${process.env.DB_SERVICE_WORKER_SECRET}`;
+            }
+            
+            const res = await fetch(workerUrl.toString(), { headers });
+            if (res.ok) {
+                const data = await res.json();
+                return NextResponse.json(data);
+            }
+            console.warn("DB service worker returned error status, falling back to direct Supabase query:", res.status);
+        } catch (workerErr) {
+            console.error("DB service worker fetch failed, falling back to direct Supabase query:", workerErr);
+        }
+    }
+
     const minBids = searchParams.get('minBids') ? parseInt(searchParams.get('minBids')) : null;
     const maxBids = searchParams.get('maxBids') ? parseInt(searchParams.get('maxBids')) : null;
     const minVal = searchParams.get('minVal') ? parseFloat(searchParams.get('minVal')) : null;

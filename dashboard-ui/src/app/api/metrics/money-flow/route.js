@@ -7,6 +7,28 @@ export async function GET(request) {
         const org = searchParams.get('org') || '';
         const limit = parseInt(searchParams.get('limit') || '8');
 
+        // Check if Cloudflare Worker proxy is available
+        if (process.env.DB_SERVICE_WORKER_URL) {
+            try {
+                const workerUrl = new URL('/api/metrics/money-flow', process.env.DB_SERVICE_WORKER_URL);
+                workerUrl.search = searchParams.toString();
+                
+                const headers = {};
+                if (process.env.DB_SERVICE_WORKER_SECRET) {
+                    headers['Authorization'] = `Bearer ${process.env.DB_SERVICE_WORKER_SECRET}`;
+                }
+                
+                const res = await fetch(workerUrl.toString(), { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    return NextResponse.json(data);
+                }
+                console.warn("DB service worker returned error status, falling back to direct Supabase query:", res.status);
+            } catch (workerErr) {
+                console.error("DB service worker fetch failed, falling back to direct Supabase query:", workerErr);
+            }
+        }
+
         let nodes = [];
         let links = [];
 

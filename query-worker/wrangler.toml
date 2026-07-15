@@ -1,0 +1,8 @@
+name = "tender-db-worker"
+main = "src/index.ts"
+compatibility_date = "2024-04-03"
+compatibility_flags = ["nodejs_compat"]
+
+[[hyperdrive]]
+name = "SUPABASE_DB"
+id = "8dcbb1b96a44304bc93572bc779b1ce"

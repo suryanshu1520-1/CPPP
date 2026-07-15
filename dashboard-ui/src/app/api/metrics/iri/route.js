@@ -7,6 +7,28 @@ export async function GET(request) {
     const org = searchParams.get('org') || '';
     const vendor = searchParams.get('vendor') || '';
 
+    // Check if Cloudflare Worker proxy is available
+    if (process.env.DB_SERVICE_WORKER_URL) {
+        try {
+            const workerUrl = new URL('/api/metrics/iri', process.env.DB_SERVICE_WORKER_URL);
+            workerUrl.search = searchParams.toString();
+            
+            const headers = {};
+            if (process.env.DB_SERVICE_WORKER_SECRET) {
+                headers['Authorization'] = `Bearer ${process.env.DB_SERVICE_WORKER_SECRET}`;
+            }
+            
+            const res = await fetch(workerUrl.toString(), { headers });
+            if (res.ok) {
+                const data = await res.json();
+                return NextResponse.json(data);
+            }
+            console.warn("DB service worker returned error status, falling back to direct Supabase query:", res.status);
+        } catch (workerErr) {
+            console.error("DB service worker fetch failed, falling back to direct Supabase query:", workerErr);
+        }
+    }
+
     const w1 = parseFloat(searchParams.get('w1') || '0.4');
     const w2 = parseFloat(searchParams.get('w2') || '0.4');
     const w3 = parseFloat(searchParams.get('w3') || '0.2');
